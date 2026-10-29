@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Importaciones</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Importaciones">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#e9ecef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f141a" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dispatcher's desk. Manifest strip on top, a sortable ledger of shipments (like the Excel), side sheet for editing. */
+:root {
+  --bg: #e9ecef; --panel: #ffffff; --panel-2: #f3f5f7; --ink: #141c25; --muted: #5d6a78; --line: #d3d9df;
+  --buy: #d9560f; --air: #1f5fd6; --sea: #0d7c74; --ok: #19804a; --warn: #a96500; --bad: #c2312b;
+  --st-wait: #b8620b; --st-mia: #1f5fd6; --st-tr: #6a3fc7; --st-done: #19804a;
+  --focus: #1f5fd6;
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141a; --panel: #18202a; --panel-2: #1e2833; --ink: #e8edf2; --muted: #93a1b0; --line: #2c3845;
+  --buy: #f07a35; --air: #6c9cf3; --sea: #3fb5a9; --ok: #4cc283; --warn: #e2a23c; --bad: #ef6b63;
+  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f141a; --panel: #18202a; --panel-2: #1e2833; --ink: #e8edf2; --muted: #93a1b0; --line: #2c3845;
+  --buy: #f07a35; --air: #6c9cf3; --sea: #3fb5a9; --ok: #4cc283; --warn: #e2a23c; --bad: #ef6b63;
+  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+.wrap { max-width: 1320px; margin-inline: auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 22px; }
+.mono { font-family: var(--f-mono); }
+.num { font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--f-display); font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 6vw, 44px); font-weight: 700; line-height: 1; text-transform: uppercase; }
+h2 { font-size: 20px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+h3 { font-size: 15px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.view { display: flex; flex-direction: column; gap: 22px; }
+.view[hidden] { display: none; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.top .id { display: flex; flex-direction: column; gap: 6px; }
+.route { display: flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.route b { color: var(--ink); font-weight: 500; }
+.route i { display: inline-block; width: 30px; border-top: 2px dotted var(--muted); }
+.tabs { display: flex; gap: 3px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); padding: 3px; flex-wrap: wrap; }
+.tab { border: 0; background: transparent; padding: 7px 13px; border-radius: 4px; cursor: pointer; font-family: var(--f-display); font-size: 15px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+
+/* Manifest strip */
+.manifest { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+.cell { padding: 13px 16px; display: flex; flex-direction: column; gap: 2px; border-right: 1px dashed var(--line); border-bottom: 1px dashed var(--line); min-width: 0; }
+.cell .lab { display: flex; align-items: center; gap: 7px; }
+.cell .lab::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--c, var(--muted)); }
+.cell .val { font-family: var(--f-display); font-size: 30px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cell .note { font-size: 12.5px; color: var(--muted); }
+.cell .note.ok { color: var(--ok); } .cell .note.bad { color: var(--bad); }
+
+/* Alerts */
+.alerts { display: flex; flex-direction: column; gap: 6px; }
+.alert { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ac, var(--warn)); border-radius: var(--r); padding: 8px 12px; font-size: 14px; }
+.alert b { font-weight: 600; }
+.alert .k { font-family: var(--f-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ac, var(--warn)); font-weight: 700; white-space: nowrap; }
+
+/* Toolbar */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 5px 11px; cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--muted)); }
+.chip b { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.chip[aria-pressed="true"] b { color: var(--panel); }
+.search { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 10px; font-size: 16px; min-width: 0; width: min(260px, 100%); }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 14px; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.btn.small { padding: 4px 9px; font-size: 13px; }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Status pill */
+.st { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-display); font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--c); white-space: nowrap; }
+.st::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent); }
+
+/* Ledger table */
+.ledger { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.tblwrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+thead th { position: sticky; top: 0; background: var(--panel-2); text-align: left; font-family: var(--f-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 9px 10px; border-bottom: 2px solid var(--ink); white-space: nowrap; }
+thead th button { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+thead th button:focus-visible { outline: 2px solid var(--focus); }
+thead th[aria-sort="ascending"] button::after { content: "▲"; font-size: 9px; }
+thead th[aria-sort="descending"] button::after { content: "▼"; font-size: 9px; }
+tbody td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: color-mix(in srgb, var(--focus) 6%, var(--panel)); }
+td.r, th.r { text-align: right; }
+td.items { min-width: 220px; max-width: 320px; white-space: pre-line; }
+td.items .clip { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+td.date { white-space: nowrap; }
+td .est { color: var(--muted); font-style: italic; }
+td .none { color: var(--muted); }
+td.track { font-family: var(--f-mono); font-size: 12px; white-space: nowrap; }
+td .sub { display: block; font-size: 11.5px; color: var(--muted); }
+tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; background: var(--panel-2); white-space: nowrap; }
+.mode { display: inline-flex; color: var(--mc); }
+.mode svg { width: 18px; height: 18px; }
+.cards { display: none; }
+@media (max-width: 760px) {
+  .ledger .tblwrap { display: none; }
+  .cards { display: flex; flex-direction: column; }
+  .card { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+  .card .t { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .card .it { font-weight: 600; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--muted); }
+  .card .money { display: flex; gap: 14px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .card .money b { font-weight: 700; }
+  .cardfoot { padding: 12px 14px; background: var(--panel-2); font-weight: 700; display: flex; flex-wrap: wrap; gap: 6px 16px; font-variant-numeric: tabular-nums; }
+}
+.empty { padding: 30px 18px; text-align: center; color: var(--muted); }
+.empty b { display: block; color: var(--ink); font-family: var(--f-display); font-size: 20px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+
+/* Sections */
+.sect { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); margin-bottom: 14px; }
+.sect .meta { font-size: 13px; color: var(--muted); }
+.duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 24px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; min-width: 0; }
+.kv3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; }
+.kv3 .v { font-family: var(--f-display); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kv3 .n { font-size: 12.5px; color: var(--muted); }
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.brow { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+.brow .m { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.brow .track { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: var(--panel-2); }
+.brow .track span { height: 100%; }
+.brow .tot { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 84px; text-align: right; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 9px; height: 9px; border-radius: 2px; }
+.simple td, .simple th { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); text-align: left; }
+.simple th { font-family: var(--f-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: none; position: static; border-bottom: 1px solid var(--line); }
+.simple .r { text-align: right; padding-right: 0; }
+.simple tr { cursor: default; }
+.simple tbody tr:hover td { background: none; }
+
+/* Tasks */
+.tasks { list-style: none; margin: 0; padding: 0; }
+.task { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.task input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--ok); }
+.task .tt { font-weight: 600; }
+.task .td { font-size: 12.5px; color: var(--muted); }
+.task.done .tt { text-decoration: line-through; color: var(--muted); }
+.due { font-family: var(--f-mono); font-size: 12px; white-space: nowrap; color: var(--muted); }
+.due.soon { color: var(--warn); } .due.late { color: var(--bad); }
+.addtask { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-top: 10px; }
+.x { border: 0; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted); padding: 2px 8px; }
+
+/* Fields */
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px 14px; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.f > span { font-family: var(--f-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.f.wide { grid-column: 1 / -1; }
+.f input, .f select, .f textarea, .addtask input { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; font-size: 16px; font-variant-numeric: tabular-nums; }
+.f textarea { min-height: 78px; resize: vertical; }
+.f input:focus, .f select:focus, .f textarea:focus, .addtask input:focus, .search:focus { outline: 2px solid color-mix(in srgb, var(--focus) 50%, transparent); outline-offset: 0; border-color: var(--focus); }
+.f.check { flex-direction: row; align-items: center; gap: 8px; align-self: end; padding-bottom: 9px; }
+.f.check input { width: 18px; height: 18px; accent-color: var(--ok); }
+.f.check span { font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--ink); font-weight: 500; }
+.group { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.group::after { content: ""; flex: 1; border-top: 1px dashed var(--line); }
+.group span { font-family: var(--f-display); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+.hint { font-size: 12.5px; color: var(--muted); }
+.calcline { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 18px; background: var(--panel-2); border: 1px dashed var(--line); border-radius: var(--r); padding: 9px 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.calcline b { font-weight: 700; }
+
+/* Sheet */
+.scrim { position: fixed; inset: 0; background: rgb(8 12 18 / .45); z-index: 40; display: flex; justify-content: flex-end; }
+.sheet { background: var(--bg); width: min(680px, 100%); height: 100%; overflow-y: auto; display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.sheet header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 2px solid var(--ink); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.sheet .body { padding: 16px 18px 24px; }
+.sheet footer { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 12px 18px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* Calculator */
+.ticket { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--mode-c, var(--air)); border-radius: var(--r); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; font-variant-numeric: tabular-nums; }
+.ticket .ln { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--muted); }
+.ticket .ln b { color: var(--ink); font-weight: 600; text-align: right; }
+.ticket .ln.hl b { color: var(--mode-c, var(--air)); }
+.ticket .big { align-items: baseline; color: var(--ink); }
+.ticket .big b { font-family: var(--f-display); font-size: 34px; font-weight: 700; }
+.ticket .sep { border-top: 1px dashed var(--line); margin: 4px 0; }
+.ticket .msg { font-size: 12.5px; color: var(--muted); margin: 4px 0 0; }
+.ticket .msg.warn { color: var(--warn); }
+.quotes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 12px; }
+.quote { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--buy); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.quote .nm { font-family: var(--f-display); font-size: 18px; font-weight: 600; }
+.quote .rc { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.quote .rc .k { color: var(--muted); }
+.quote .rc .t { font-weight: 700; border-top: 1px solid var(--line); padding-top: 4px; }
+
+.notice { background: color-mix(in srgb, var(--warn) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); border-radius: var(--r); padding: 10px 14px; font-size: 14px; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 9px 16px; border-radius: 99px; font-size: 14px; font-weight: 600; z-index: 60; box-shadow: 0 6px 20px rgb(0 0 0 / .2); }
+.loading { color: var(--muted); font-size: 14px; padding: 18px; }
+@media (max-width: 560px) {
+  .manifest { grid-template-columns: 1fr 1fr; }
+  .cell { padding: 10px 12px; }
+  .cell .val { font-size: 22px; }
+  .cell .note { font-size: 11.5px; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; width: 100%; }
+  .tab { padding: 6px 10px; font-size: 14px; flex: 1 0 auto; }
+  h1 { font-size: 28px; }
+  .alert { grid-template-columns: 1fr auto; }
+  .alert .k { grid-column: 1 / -1; }
+  .toolbar .row { width: 100%; }
+  .search { flex: 1 1 100%; width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="id">
+      <span class="eyebrow">Casillero 118672 · Gold Coast Customs Express</span>
+      <h1>Control de importaciones</h1>
+      <div class="route"><b>TIENDA</b><i></i><b>MIA</b><i></i><b>CCS</b><span>· Las Mercedes</span></div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab" role="tab" id="envios" data-view="v-envios" aria-selected="true">Envíos</button>
+      <button class="tab" role="tab" id="resumen" data-view="v-resumen" aria-selected="false">Resumen</button>
+      <button class="tab" role="tab" id="cotizador" data-view="v-cotizar" aria-selected="false">Cotizador</button>
+      <button class="tab" role="tab" id="tarifas" data-view="v-ajustes" aria-selected="false">Tarifas</button>
+    </nav>
+  </div>
+
+  <div id="ro" class="notice" hidden>Esta vista es de solo lectura: no se pueden guardar cambios desde aquí.</div>
+
+  <!-- ENVIOS -->
+  <main id="v-envios" class="view">
+    <section class="manifest" aria-label="Totales">
+      <div class="cell" style="--c: var(--buy)"><span class="eyebrow lab">Total de compras</span><span class="val" id="m-compras">—</span><span class="note" id="m-compras-n">&nbsp;</span></div>
+      <div class="cell" style="--c: var(--air)"><span class="eyebrow lab">Facturas Gold Coast</span><span class="val" id="m-gc">—</span><span class="note" id="m-gc-n">&nbsp;</span></div>
+      <div class="cell" style="--c: var(--ink)"><span class="eyebrow lab">Total gastado</span><span class="val" id="m-total">—</span><span class="note" id="m-total-n">&nbsp;</span></div>
+      <div class="cell" style="--c: var(--ok)"><span class="eyebrow lab">Por pagar en Las Mercedes</span><span class="val" id="m-pagar">—</span><span class="note" id="m-pagar-n">&nbsp;</span></div>
+    </section>
+
+    <section class="alerts" id="alerts" aria-label="Atención"></section>
+
+    <section>
+      <div class="toolbar">
+        <div class="chips" id="chips" role="group" aria-label="Filtrar por estado"></div>
+        <div class="row">
+          <input class="search" id="q" type="search" placeholder="Buscar artículo, tracking, recibo…" aria-label="Buscar">
+          <button class="btn" id="backup" type="button">Copia de seguridad</button>
+          <label class="btn" for="restore-file">Restaurar</label><input id="restore-file" type="file" accept="application/json,.json" hidden>
+          <button class="btn primary" id="new" type="button">+ Nuevo envío</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ledger" aria-label="Registro de envíos">
+      <div class="tblwrap">
+        <table id="tbl">
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"><tr><td class="loading" colspan="14">Cargando tus envíos…</td></tr></tbody>
+          <tfoot><tr id="tfoot"></tr></tfoot>
+        </table>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+  </main>
+
+  <!-- RESUMEN -->
+  <main id="v-resumen" class="view" hidden>
+    <section class="panel">
+      <div class="kv3" id="kpis"></div>
+    </section>
+    <div class="duo">
+      <section>
+        <div class="sect"><h2>Gasto por mes</h2><span class="meta">Según la fecha de compra</span></div>
+        <div class="panel"><div class="bars" id="months"></div>
+          <div class="legend"><span><i style="background:var(--buy)"></i>Compras</span><span><i style="background:var(--air)"></i>Gold Coast</span></div></div>
+      </section>
+      <section>
+        <div class="sect"><h2>Tiempos</h2><span class="meta">Promedio de tus envíos</span></div>
+        <div class="panel"><div class="kv3" id="times"></div><p class="hint" style="margin:12px 0 0">El retiro estimado de cada envío usa la fecha del embarque más los días de la pestaña Tarifas.</p></div>
+      </section>
+    </div>
+    <div class="duo">
+      <section>
+        <div class="sect"><h2>Por tienda</h2><span class="meta">Compras y fletes</span></div>
+        <div class="panel"><table class="simple" id="by-store"><thead><tr><th>Tienda</th><th class="r">Envíos</th><th class="r">Compras</th><th class="r">Fletes</th><th class="r">Total</th></tr></thead><tbody></tbody></table></div>
+      </section>
+      <section>
+        <div class="sect"><h2>Pendientes</h2><span class="meta">Fechas límite</span></div>
+        <div class="panel">
+          <ul class="tasks" id="tasks"></ul>
+          <div class="addtask">
+            <input id="nt-text" type="text" placeholder="Nueva tarea" aria-label="Nueva tarea">
+            <input id="nt-date" type="date" aria-label="Fecha límite">
+            <button class="btn" id="nt-add" type="button">Añadir</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- COTIZADOR -->
+  <main id="v-cotizar" class="view" hidden>
+    <div class="duo">
+      <section>
+        <div class="sect"><h2>Calculadora</h2><span class="meta">Con tus tarifas</span></div>
+        <div class="fields">
+          <label class="f wide"><span>Producto</span><input id="q-name" type="text" placeholder="Ej. Monitor 7 pulgadas"></label>
+          <label class="f"><span>Tienda</span><input id="q-store" type="text" list="stores" placeholder="Amazon"></label>
+          <label class="f"><span>Envío</span><select id="q-mode"><option value="aereo">Aéreo</option><option value="maritimo">Marítimo</option></select></label>
+          <label class="f"><span>Unidades</span><select id="q-units"><option value="imp">lb · pulgadas</option><option value="met">kg · cm</option></select></label>
+          <label class="f"><span>Cantidad</span><input id="q-qty" type="number" min="1" step="1" value="1" inputmode="numeric"></label>
+          <label class="f"><span id="q-wl">Peso c/u (lb)</span><input id="q-w" type="number" min="0" step="0.01" inputmode="decimal"></label>
+          <label class="f"><span>Empaque</span><select id="q-box"><option value="0">Medidas de la caja</option><option value="1">Producto +1 in por lado</option><option value="2">Producto +2 in por lado</option></select></label>
+          <label class="f"><span id="q-ll">Largo (in)</span><input id="q-l" type="number" min="0" step="0.1" inputmode="decimal"></label>
+          <label class="f"><span id="q-al">Ancho (in)</span><input id="q-a" type="number" min="0" step="0.1" inputmode="decimal"></label>
+          <label class="f"><span id="q-hl">Alto (in)</span><input id="q-h" type="number" min="0" step="0.1" inputmode="decimal"></label>
+          <label class="f"><span>Precio total (USD)</span><input id="q-p" type="number" min="0" step="0.01" inputmode="decimal"></label>
+          <label class="f check"><input id="q-books" type="checkbox"><span>Son solo libros</span></label>
+        </div>
+      </section>
+      <section>
+        <div class="sect"><h2>Factura estimada</h2><span class="meta">Retiro en Las Mercedes</span></div>
+        <div class="ticket" id="ticket">
+          <div class="ln"><span>Peso real</span><b id="o-real">—</b></div>
+          <div class="ln"><span id="o-voll">Peso volumétrico</span><b id="o-vol">—</b></div>
+          <div class="ln hl"><span id="o-billl">Peso que cobran</span><b id="o-bill">—</b></div>
+          <div class="ln"><span id="o-fl">Flete</span><b id="o-flete">—</b></div>
+          <div class="ln"><span>Aranceles</span><b id="o-tax">—</b></div>
+          <div class="sep"></div>
+          <div class="ln big"><span>Pagas en Las Mercedes</span><b id="o-lm">—</b></div>
+          <div class="ln"><span>Precio en tienda</span><b id="o-buy">—</b></div>
+          <div class="ln"><span><b style="color:var(--ink)">Costo total</b></span><b id="o-total">—</b></div>
+          <p class="msg" id="o-msg">Escribe el peso y las medidas para ver la factura.</p>
+          <div class="row" style="margin-top:6px"><button class="btn" id="q-save" type="button" disabled>Guardar cotización</button></div>
+        </div>
+      </section>
+    </div>
+    <section>
+      <div class="sect"><h2>Cotizaciones guardadas</h2><span class="meta">Conviértelas en envío cuando compres</span></div>
+      <div class="quotes" id="quotes"></div>
+    </section>
+  </main>
+
+  <!-- TARIFAS -->
+  <main id="v-ajustes" class="view" hidden>
+    <section>
+      <div class="sect"><h2>Tarifas y ajustes</h2><span class="meta">Se usan en estimaciones y alertas</span></div>
+      <div class="fields">
+        <div class="group"><span>Aéreo courier</span></div>
+        <label class="f"><span>Tarifa por libra (USD)</span><input id="c-air-rate" type="number" step="0.01" min="0" inputmode="decimal"></label>
+        <label class="f"><span>Mínimo por paquete (USD)</span><input id="c-air-min" type="number" step="0.01" min="0" inputmode="decimal"></label>
+        <label class="f"><span>Divisor volumétrico (in³/lb)</span><input id="c-div" type="number" step="1" min="1" inputmode="numeric"></label>
+        <label class="f"><span>Peso volumétrico mínimo (lb)</span><input id="c-vmin" type="number" step="0.01" min="0" inputmode="decimal"></label>
+        <div class="group"><span>Marítimo</span></div>
+        <label class="f"><span>Tarifa por pie³ (USD)</span><input id="c-sea-rate" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Sin definir"></label>
+        <label class="f"><span>Mínimo por paquete (USD)</span><input id="c-sea-min" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Sin definir"></label>
+        <div class="group"><span>Tiempos, aduana y caja</span></div>
+        <label class="f"><span>Días de embarque a retiro</span><input id="c-dias" type="number" step="1" min="0" inputmode="numeric"></label>
+        <label class="f"><span>Tope sin aranceles (USD)</span><input id="c-cap" type="number" step="1" min="0" inputmode="decimal"></label>
+        <label class="f"><span>Dinero apartado para retiros (USD)</span><input id="c-cash" type="number" step="0.01" min="0" inputmode="decimal"></label>
+      </div>
+      <div class="row" style="margin-top:16px"><button class="btn primary" id="cfg-save" type="button">Guardar</button><span class="hint">Tus dos embarques de prueba tardaron 5 días del embarque al retiro.</span></div>
+    </section>
+  </main>
+</div>
+
+<datalist id="stores"></datalist>
+
+<!-- Editor -->
+<div class="scrim" id="scrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-title">
+    <header><h2 id="ed-title">Nuevo envío</h2><button class="x" id="ed-x" type="button" aria-label="Cerrar">×</button></header>
+    <form class="body" id="ed" novalidate>
+      <div class="fields">
+        <div class="group"><span>Compra</span></div>
+        <label class="f"><span>Estado</span><select id="e-estado"></select></label>
+        <label class="f"><span>Tienda</span><input id="e-tienda" type="text" list="stores" placeholder="Amazon"></label>
+        <label class="f"><span>Nº de pedido</span><input id="e-pedido" type="text"></label>
+        <label class="f"><span>Fecha de compra</span><input id="e-f_compra" type="date"></label>
+        <label class="f wide"><span>Artículos</span><textarea id="e-articulos" placeholder="Un artículo por línea"></textarea></label>
+        <label class="f"><span>Total de la compra (USD)</span><input id="e-total_compra" type="number" min="0" step="0.01" inputmode="decimal"></label>
+
+        <div class="group"><span>Envío a Miami</span></div>
+        <label class="f"><span>Método de envío</span><select id="e-metodo"><option value="aereo">Aéreo</option><option value="maritimo">Marítimo</option></select></label>
+        <label class="f wide"><span>Tracking</span><input id="e-tracking" type="text" class="mono" autocomplete="off"></label>
+        <label class="f"><span>Entrega aproximada en Miami</span><input id="e-f_aprox_miami" type="date"></label>
+        <label class="f"><span>Fecha de entrega en Miami</span><input id="e-f_miami" type="date"></label>
+
+        <div class="group"><span>Gold Coast</span></div>
+        <label class="f"><span>Recibo / factura</span><input id="e-recibo" type="text" inputmode="numeric" placeholder="941824"></label>
+        <label class="f"><span>Número de embarque</span><input id="e-embarque" type="text" class="mono" placeholder="OCT_30_2026_A_I"></label>
+        <label class="f"><span>Peso cobrado (lb)</span><input id="e-peso_lb" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        <label class="f"><span>Volumen (ft³)</span><input id="e-volumen_cuft" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        <label class="f"><span>Total factura Gold Coast (USD)</span><input id="e-factura_gc" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        <label class="f"><span>Fecha de retiro en Las Mercedes</span><input id="e-f_retiro" type="date"></label>
+        <div class="calcline" id="e-calc"></div>
+        <label class="f wide"><span>Notas</span><textarea id="e-notas"></textarea></label>
+      </div>
+    </form>
+    <footer>
+      <div class="row"><button class="btn danger" id="ed-del" type="button">Eliminar</button><button class="btn ghost" id="ed-dup" type="button">Duplicar</button></div>
+      <div class="row"><button class="btn ghost" id="ed-cancel" type="button">Cancelar</button><button class="btn primary" id="ed-save" type="button">Guardar</button></div>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const ESTADOS = [
+    { k: 'En espera', c: 'var(--st-wait)', d: 'Comprado, aún no llega a Miami' },
+    { k: 'En Miami', c: 'var(--st-mia)', d: 'En el almacén de Gold Coast' },
+    { k: 'En tránsito', c: 'var(--st-tr)', d: 'Embarcado hacia Caracas' },
+    { k: 'Terminado', c: 'var(--st-done)', d: 'Retirado y pagado' },
+  ];
+  const stColor = (k) => (ESTADOS.find((e) => e.k === k) || ESTADOS[0]).c;
+  const DEF_CFG = { air_rate: 4.85, air_min: 10, divisor: 166, vol_min: 1, sea_rate: null, sea_min: null, cap: 100, cash: 0, dias_retiro: 5 };
+  const S = { env: null, tasks: null, quotes: null, cfg: { ...DEF_CFG }, filter: 'activos', q: '', sort: { k: 'f_compra', dir: 'desc' }, db: null, ro: false, editing: null };
+  const $ = (id) => document.getElementById(id);
+  const h = (tag, attrs, ...kids) => {
+    const e = document.createElement(tag);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? '' : v);
+    }
+    for (const k of kids.flat()) if (k != null && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k)));
+    return e;
+  };
+  const n = (v) => (v === '' || v == null || !isFinite(Number(v)) ? null : Number(v));
+  const usd = (v) => (v == null ? '—' : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const r2 = (x) => Math.round(x * 100 + 1e-9) / 100;
+  const M = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  const fmtD = (d) => { if (!d) return ''; const [y, m, dd] = d.split('-'); return Number(dd) + ' ' + M[Number(m) - 1] + (y !== String(new Date().getFullYear()) ? ' ' + y.slice(2) : ''); };
+  const todayISO = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+  const days = (a, b) => (a && b ? Math.round((new Date(b) - new Date(a)) / 864e5) : null);
+  const addDays = (iso, k) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + k); return d.toISOString().slice(0, 10); };
+  const EN = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+  const embarqueDate = (s) => { const m = /^([A-Z]{3})_(\d{1,2})_(\d{4})/.exec(String(s || '').toUpperCase()); if (!m || !EN[m[1]]) return null; return m[3] + '-' + String(EN[m[1]]).padStart(2, '0') + '-' + m[2].padStart(2, '0'); };
+  const retiroEst = (e) => { if (e.f_retiro || e.estado === 'Terminado') return null; const d = embarqueDate(e.embarque); return d ? addDays(d, n(S.cfg.dias_retiro) ?? 5) : null; };
+  const totalOf = (e) => { const c = n(e.total_compra), g = n(e.factura_gc); return c == null && g == null ? null : r2((c || 0) + (g || 0)); };
+  const toast = (t) => { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, 2200); };
+  const PLANE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 13.5 21 6.5c.8-.3 1.4.6.8 1.2L15 14l-1 6.2c-.1.7-1 .9-1.4.3L10 16l-4 1.5-1-1.5 2.6-2.4-5-1.3c-.6-.2-.7-1-.1-1.3Z"/></svg>';
+  const SHIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14h18l-2.5 5H5.5Z"/><path d="M6 14V9h12v5"/><path d="M10 9V5h4v4"/><path d="M2 21c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1"/></svg>';
+  const modeIcon = (m) => { const s = h('span', { class: 'mode', title: m === 'maritimo' ? 'Marítimo' : 'Aéreo', style: '--mc:' + (m === 'maritimo' ? 'var(--sea)' : 'var(--air)') }); s.innerHTML = m === 'maritimo' ? SHIP : PLANE; return s; };
+  const stPill = (k) => h('span', { class: 'st', style: '--c:' + stColor(k) }, k || 'En espera');
+
+  /* Tabs */
+  const tabs = [...document.querySelectorAll('.tab')];
+  const showTab = (t) => { tabs.forEach((x) => { const on = x === t; x.setAttribute('aria-selected', on); $(x.dataset.view).hidden = !on; }); };
+  tabs.forEach((t) => t.addEventListener('click', () => showTab(t)));
+  const fromHash = $(location.hash.slice(1)); if (fromHash && fromHash.classList.contains('tab')) showTab(fromHash);
+
+  /* ---------- Summary + alerts ---------- */
+  function renderManifest() {
+    const L = S.env || [];
+    const compras = L.reduce((s, e) => s + (n(e.total_compra) || 0), 0);
+    const gc = L.reduce((s, e) => s + (n(e.factura_gc) || 0), 0);
+    const sinFact = L.filter((e) => n(e.factura_gc) == null && e.estado !== 'Terminado').length;
+    const pend = L.filter((e) => ['En Miami', 'En tránsito'].includes(e.estado) && n(e.factura_gc) != null);
+    const pagar = pend.reduce((s, e) => s + n(e.factura_gc), 0);
+    $('m-compras').textContent = usd(r2(compras));
+    $('m-compras-n').textContent = L.length + (L.length === 1 ? ' envío registrado' : ' envíos registrados');
+    $('m-gc').textContent = usd(r2(gc));
+    $('m-gc-n').textContent = sinFact ? sinFact + ' sin facturar todavía' : 'Todo facturado';
+    $('m-total').textContent = usd(r2(compras + gc));
+    const pct = compras ? Math.round(gc / compras * 100) : 0;
+    $('m-total-n').textContent = compras ? 'El flete es el ' + pct + '% de lo que compras' : ' ';
+    $('m-pagar').textContent = usd(r2(pagar));
+    const cash = n(S.cfg.cash) || 0, nn = $('m-pagar-n');
+    if (!pend.length) { nn.textContent = 'Nada facturado pendiente'; nn.className = 'note'; }
+    else if (!cash) { nn.textContent = pend.length + (pend.length === 1 ? ' factura' : ' facturas') + ' · anota lo apartado en Tarifas'; nn.className = 'note'; }
+    else if (cash >= pagar) { nn.textContent = 'Apartado ' + usd(cash) + ' · alcanza'; nn.className = 'note ok'; }
+    else { nn.textContent = 'Apartado ' + usd(cash) + ' · faltan ' + usd(r2(pagar - cash)); nn.className = 'note bad'; }
+  }
+  function renderAlerts() {
+    const box = $('alerts'); box.textContent = '';
+    const t = todayISO(), out = [];
+    (S.env || []).forEach((e) => {
+      const name = firstLine(e.articulos);
+      if (e.estado === 'En espera' && e.f_aprox_miami && e.f_aprox_miami < t) out.push(['Revisar', 'var(--warn)', name, 'debía llegar a Miami el ' + fmtD(e.f_aprox_miami) + '. Revisa el tracking con la tienda.', e]);
+      if (e.estado === 'En Miami' && n(e.factura_gc) == null && e.f_miami && days(e.f_miami, t) >= 3) out.push(['Sin factura', 'var(--warn)', name, 'lleva ' + days(e.f_miami, t) + ' días en Miami sin factura de Gold Coast.', e]);
+      const est = retiroEst(e);
+      if (e.estado !== 'Terminado' && est && est <= t) out.push(['Listo para retirar', 'var(--ok)', name, 'por el embarque ' + e.embarque + ' debería estar en Las Mercedes desde el ' + fmtD(est) + '. Confirma por teléfono antes de ir.', e]);
+      else if (e.estado !== 'Terminado' && est) out.push(['Retiro estimado', 'var(--st-tr)', name, fmtD(est) + ' (embarque ' + e.embarque + ').', e]);
+    });
+    out.slice(0, 6).forEach(([k, c, name, msg, e]) => {
+      box.append(h('div', { class: 'alert', style: '--ac:' + c }, h('span', { class: 'k' }, k), h('span', null, h('b', null, name), ' ' + msg), h('button', { class: 'btn small', type: 'button', onclick: () => openEditor(e) }, 'Abrir')));
+    });
+  }
+  const firstLine = (s) => { const t = String(s || 'Sin artículos').replace(/\s*\n\s*/g, ' ').trim(); return t.length > 60 ? t.slice(0, 58) + '…' : t; };
+
+  /* ---------- Ledger ---------- */
+  const COLS = [
+    { k: 'estado', l: 'Estado', sort: (e) => ESTADOS.findIndex((x) => x.k === e.estado) },
+    { k: 'f_compra', l: 'Compra', sort: (e) => e.f_compra || '' },
+    { k: 'f_miami', l: 'Miami', sort: (e) => e.f_miami || e.f_aprox_miami || '' },
+    { k: 'embarque', l: 'Embarque', sort: (e) => embarqueDate(e.embarque) || '' },
+    { k: 'f_retiro', l: 'Retiro', sort: (e) => e.f_retiro || retiroEst(e) || '' },
+    { k: 'tienda', l: 'Tienda', sort: (e) => (e.tienda || '').toLowerCase() },
+    { k: 'articulos', l: 'Artículos', sort: (e) => (e.articulos || '').toLowerCase() },
+    { k: 'metodo', l: 'Envío', sort: (e) => e.metodo || '' },
+    { k: 'tracking', l: 'Tracking', sort: (e) => e.tracking || '' },
+    { k: 'peso_lb', l: 'Peso', r: 1, sort: (e) => n(e.peso_lb) ?? -1 },
+    { k: 'recibo', l: 'Recibo', sort: (e) => String(e.recibo || '') },
+    { k: 'total_compra', l: 'Compra $', r: 1, sort: (e) => n(e.total_compra) ?? -1 },
+    { k: 'factura_gc', l: 'Gold Coast $', r: 1, sort: (e) => n(e.factura_gc) ?? -1 },
+    { k: 'total', l: 'Total', r: 1, sort: (e) => totalOf(e) ?? -1 },
+  ];
+  function visible() {
+    let L = (S.env || []).slice();
+    if (S.filter === 'activos') L = L.filter((e) => e.estado !== 'Terminado');
+    else if (S.filter !== 'todos') L = L.filter((e) => e.estado === S.filter);
+    const q = S.q.trim().toLowerCase();
+    if (q) L = L.filter((e) => [e.articulos, e.tracking, e.recibo, e.tienda, e.embarque, e.pedido, e.notas].join(' ').toLowerCase().includes(q));
+    const col = COLS.find((c) => c.k === S.sort.k) || COLS[1];
+    L.sort((a, b) => { const x = col.sort(a), y = col.sort(b); return (x < y ? -1 : x > y ? 1 : 0) * (S.sort.dir === 'asc' ? 1 : -1); });
+    return L;
+  }
+  function renderChips() {
+    const box = $('chips'); box.textContent = '';
+    const L = S.env || [];
+    const opts = [['activos', 'En curso', L.filter((e) => e.estado !== 'Terminado').length, 'var(--ink)'], ...ESTADOS.map((e) => [e.k, e.k, L.filter((x) => x.estado === e.k).length, e.c]), ['todos', 'Todos', L.length, 'var(--muted)']];
+    opts.forEach(([k, l, c, col]) => box.append(h('button', { class: 'chip', type: 'button', 'aria-pressed': S.filter === k, style: '--c:' + col, onclick: () => { S.filter = k; renderChips(); renderLedger(); } }, h('i'), l, h('b', null, String(c)))));
+  }
+  function renderLedger() {
+    const thr = $('thead'); thr.textContent = '';
+    COLS.forEach((c) => {
+      const th = h('th', { class: c.r ? 'r' : null, 'aria-sort': S.sort.k === c.k ? (S.sort.dir === 'asc' ? 'ascending' : 'descending') : null });
+      th.append(h('button', { type: 'button', onclick: () => { S.sort = { k: c.k, dir: S.sort.k === c.k && S.sort.dir === 'desc' ? 'asc' : 'desc' }; renderLedger(); } }, c.l));
+      thr.append(th);
+    });
+    const tb = $('tbody'); tb.textContent = '';
+    const cards = $('cards'); cards.textContent = '';
+    if (S.env == null) { tb.append(h('tr', null, h('td', { class: 'loading', colspan: COLS.length }, 'Cargando tus envíos…'))); return; }
+    const L = visible();
+    if (!L.length) {
+      const msg = S.env.length ? ['Nada en esta vista', 'Cambia el filtro o la búsqueda.'] : ['Aún no hay envíos', 'Pulsa “+ Nuevo envío” para registrar una compra, o “Restaurar” para cargar una copia de seguridad.'];
+      tb.append(h('tr', null, h('td', { colspan: COLS.length }, h('div', { class: 'empty' }, h('b', null, msg[0]), msg[1]))));
+      cards.append(h('div', { class: 'empty' }, h('b', null, msg[0]), msg[1]));
+    }
+    L.forEach((e) => {
+      const est = retiroEst(e);
+      const tr = h('tr', { tabindex: '0', onclick: () => openEditor(e), onkeydown: (ev) => { if (ev.key === 'Enter') openEditor(e); } });
+      const dateCell = (d, alt, altLbl) => h('td', { class: 'date' }, d ? fmtD(d) : alt ? h('span', { class: 'est' }, altLbl + ' ' + fmtD(alt)) : h('span', { class: 'none' }, '—'));
+      tr.append(
+        h('td', null, stPill(e.estado)),
+        dateCell(e.f_compra),
+        dateCell(e.f_miami, e.f_aprox_miami, '≈'),
+        h('td', { class: 'track' }, e.embarque || h('span', { class: 'none' }, '—')),
+        dateCell(e.f_retiro, est, 'est.'),
+        h('td', null, e.tienda || h('span', { class: 'none' }, '—')),
+        h('td', { class: 'items' }, h('div', { class: 'clip' }, e.articulos || '—')),
+        h('td', null, modeIcon(e.metodo)),
+        h('td', { class: 'track' }, e.tracking || h('span', { class: 'none' }, 'Pendiente')),
+        h('td', { class: 'r' }, n(e.peso_lb) != null ? n(e.peso_lb).toFixed(2) + ' lb' : h('span', { class: 'none' }, '—'), n(e.peso_lb) != null ? h('span', { class: 'sub' }, (n(e.peso_lb) * 0.453592).toFixed(2) + ' kg') : null),
+        h('td', { class: 'track' }, e.recibo || h('span', { class: 'none' }, '—')),
+        h('td', { class: 'r' }, usd(n(e.total_compra))),
+        h('td', { class: 'r' }, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : h('span', { class: 'none' }, 'No facturado')),
+        h('td', { class: 'r' }, h('b', null, usd(totalOf(e)))),
+      );
+      tb.append(tr);
+      cards.append(h('div', { class: 'card', tabindex: '0', onclick: () => openEditor(e) },
+        h('div', { class: 't' }, stPill(e.estado), h('span', { class: 'row', style: 'gap:6px;color:var(--muted);font-size:13px' }, e.tienda || '', modeIcon(e.metodo))),
+        h('div', { class: 'it' }, e.articulos || 'Sin artículos'),
+        h('div', { class: 'meta' }, e.f_compra ? h('span', null, 'Compra ' + fmtD(e.f_compra)) : null, e.f_miami ? h('span', null, 'Miami ' + fmtD(e.f_miami)) : e.f_aprox_miami ? h('span', null, 'Miami ≈ ' + fmtD(e.f_aprox_miami)) : null, e.f_retiro ? h('span', null, 'Retiro ' + fmtD(e.f_retiro)) : est ? h('span', null, 'Retiro est. ' + fmtD(est)) : null, e.recibo ? h('span', { class: 'mono' }, '#' + e.recibo) : null),
+        h('div', { class: 'money' }, h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra)))), h('span', null, 'GC ', h('b', null, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : '—')), h('span', null, 'Total ', h('b', null, usd(totalOf(e)))))));
+    });
+    // footer totals (of the visible rows)
+    const tf = $('tfoot'); tf.textContent = '';
+    const sc = L.reduce((s, e) => s + (n(e.total_compra) || 0), 0), sg = L.reduce((s, e) => s + (n(e.factura_gc) || 0), 0), sw = L.reduce((s, e) => s + (n(e.peso_lb) || 0), 0);
+    tf.append(h('td', { colspan: 9 }, 'TOTAL · ' + L.length + (L.length === 1 ? ' envío' : ' envíos')), h('td', { class: 'r' }, sw ? r2(sw).toFixed(2) + ' lb' : ''), h('td'), h('td', { class: 'r' }, usd(r2(sc))), h('td', { class: 'r' }, usd(r2(sg))), h('td', { class: 'r' }, usd(r2(sc + sg))));
+    cards.append(h('div', { class: 'cardfoot' }, h('span', null, 'TOTAL'), h('span', null, 'Compra ' + usd(r2(sc))), h('span', null, 'GC ' + usd(r2(sg))), h('span', null, 'Total ' + usd(r2(sc + sg)))));
+  }
+  $('q').addEventListener('input', (e) => { S.q = e.target.value; renderLedger(); });
+
+  /* ---------- Editor ---------- */
+  const FIELDS = ['estado', 'tienda', 'pedido', 'f_compra', 'articulos', 'total_compra', 'metodo', 'tracking', 'f_aprox_miami', 'f_miami', 'recibo', 'embarque', 'peso_lb', 'volumen_cuft', 'factura_gc', 'f_retiro', 'notas'];
+  const NUMS = new Set(['total_compra', 'peso_lb', 'volumen_cuft', 'factura_gc']);
+  const E = (k) => $('e-' + k);
+  ESTADOS.forEach((s) => E('estado').append(h('option', { value: s.k }, s.k)));
+  function openEditor(e, prefill) {
+    S.editing = e ? e.id : null;
+    $('ed-title').textContent = e ? 'Editar envío' : 'Nuevo envío';
+    const src = e || prefill || {};
+    FIELDS.forEach((k) => { E(k).value = src[k] == null ? '' : src[k]; });
+    if (!e && !prefill) { E('estado').value = 'En espera'; E('metodo').value = 'aereo'; E('f_compra').value = todayISO(); E('tienda').value = 'Amazon'; }
+    if (!E('estado').value) E('estado').value = 'En espera';
+    if (!E('metodo').value) E('metodo').value = 'aereo';
+    $('ed-del').hidden = !e; $('ed-dup').hidden = !e; $('ed-del').classList.remove('armed'); $('ed-del').textContent = 'Eliminar';
+    [$('ed-save'), $('ed-del'), $('ed-dup')].forEach((b) => { b.disabled = S.ro || !S.db; });
+    updateCalc();
+    $('scrim').hidden = false; setTimeout(() => E('articulos').focus(), 30);
+  }
+  function closeEditor() { $('scrim').hidden = true; S.editing = null; }
+  function readForm() {
+    const b = {};
+    FIELDS.forEach((k) => { const v = E(k).value.trim(); b[k] = NUMS.has(k) ? n(v) : (v || null); });
+    if (b.embarque) b.embarque = b.embarque.toUpperCase();
+    return b;
+  }
+  function updateCalc() {
+    const b = readForm(), box = $('e-calc'); box.textContent = '';
+    const tot = totalOf(b);
+    box.append(h('span', null, 'Total gastado ', h('b', null, usd(tot))));
+    if (b.peso_lb != null && b.metodo !== 'maritimo') {
+      const est = estimateFreight('aereo', b.peso_lb, null);
+      if (est.flete != null) box.append(h('span', null, 'Flete esperado por peso ', h('b', null, usd(est.flete)), est.min ? ' (mínimo)' : ''));
+      if (est.flete != null && b.factura_gc != null && Math.abs(est.flete - b.factura_gc) > 0.05) box.append(h('span', { style: 'color:var(--warn)' }, 'La factura difiere ' + usd(r2(b.factura_gc - est.flete)) + ': puede ser peso volumétrico.'));
+    }
+    const est = retiroEst(b); if (est) box.append(h('span', null, 'Retiro estimado ', h('b', null, fmtD(est))));
+  }
+  FIELDS.forEach((k) => E(k).addEventListener('input', updateCalc));
+  E('estado').addEventListener('change', () => { if (E('estado').value === 'Terminado' && !E('f_retiro').value) E('f_retiro').value = todayISO(); if (E('estado').value === 'En Miami' && !E('f_miami').value) E('f_miami').value = todayISO(); updateCalc(); });
+  $('new').addEventListener('click', () => openEditor(null));
+  $('ed-x').addEventListener('click', closeEditor); $('ed-cancel').addEventListener('click', closeEditor);
+  $('scrim').addEventListener('click', (ev) => { if (ev.target === $('scrim')) closeEditor(); });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !$('scrim').hidden) closeEditor(); });
+  $('ed').addEventListener('submit', (ev) => { ev.preventDefault(); save(); });
+  $('ed-save').addEventListener('click', save);
+  async function save() {
+    if (!S.db) return;
+    const b = readForm();
+    if (!b.articulos && !b.tracking) { E('articulos').focus(); toast('Escribe al menos los artículos o el tracking'); return; }
+    b.actualizado = new Date().toISOString();
+    const btn = $('ed-save'); btn.disabled = true;
+    try {
+      if (S.editing) { const cur = (S.env || []).find((x) => x.id === S.editing) || {}; await S.db.collection('envios').doc(S.editing).set({ ...strip(cur), ...b }); }
+      else { b.creado = new Date().toISOString(); await S.db.collection('envios').add(b); }
+      toast(S.editing ? 'Cambios guardados' : 'Envío registrado'); closeEditor();
+    } catch (err) { handleErr(err); }
+    btn.disabled = false;
+  }
+  $('ed-dup').addEventListener('click', () => { const b = readForm(); ['tracking', 'recibo', 'embarque', 'f_miami', 'f_retiro', 'factura_gc', 'peso_lb', 'volumen_cuft'].forEach((k) => { b[k] = null; }); b.estado = 'En espera'; b.f_compra = todayISO(); openEditor(null, b); toast('Copia lista: revisa y guarda'); });
+  $('ed-del').addEventListener('click', async () => {
+    const b = $('ed-del');
+    if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = '¿Eliminar? Pulsa otra vez'; return; }
+    try { await S.db.collection('envios').doc(S.editing).delete(); toast('Envío eliminado'); closeEditor(); } catch (err) { handleErr(err); }
+  });
+  const strip = (x) => { const { id, ...rest } = x; return rest; };
+  function handleErr(e) {
+    if (e && e.code === 'invalid_argument') { S.ro = true; $('ro').hidden = false; toast('No se pudo guardar: esta vista es de solo lectura'); renderAll(); }
+    else if (e && e.code === 'quota_exceeded') toast('La base de datos está llena: elimina registros viejos');
+    else toast('No se pudo guardar. Intenta de nuevo.');
+  }
+
+  /* ---------- Backup / restore ---------- */
+  $('backup').addEventListener('click', async () => {
+    const json = JSON.stringify({ app: 'control-importaciones', version: 1, exportado: new Date().toISOString(), datos: STORE.dump() }, null, 2);
+    const name = 'importaciones-' + todayISO() + '.json';
+    try {
+      const file = new File([json], name, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Copia de seguridad' }); toast('Copia lista'); return; }
+    } catch (err) { if (err && err.name === 'AbortError') return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' })); a.download = name; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast('Copia descargada');
+  });
+  $('restore-file').addEventListener('change', async (ev) => {
+    const f = ev.target.files && ev.target.files[0]; ev.target.value = '';
+    if (!f) return;
+    try {
+      const obj = JSON.parse(await f.text());
+      const d = obj && obj.datos;
+      if (!d || typeof d !== 'object' || !d.envios) throw new Error('formato');
+      const nEnv = Object.keys(d.envios).length;
+      const cur = Object.keys(STORE.dump().envios || {}).length;
+      if (cur && !confirmBox('Esto reemplaza tus ' + cur + ' envíos actuales por los ' + nEnv + ' de la copia. Pulsa “Restaurar” otra vez para confirmar.')) return;
+      STORE.load(d); toast(nEnv + ' envíos restaurados');
+    } catch (err) { toast('Ese archivo no es una copia válida'); }
+  });
+  let armedRestore = 0;
+  function confirmBox(msg) { const now = Date.now(); if (now - armedRestore < 15000) { armedRestore = 0; return true; } armedRestore = now; toast(msg); return false; }
+
+  /* ---------- Resumen ---------- */
+  function renderResumen() {
+    const L = S.env || [];
+    const compras = L.reduce((s, e) => s + (n(e.total_compra) || 0), 0), gc = L.reduce((s, e) => s + (n(e.factura_gc) || 0), 0);
+    const withW = L.filter((e) => n(e.peso_lb) != null && n(e.factura_gc) != null);
+    const perLb = withW.length ? withW.reduce((s, e) => s + n(e.factura_gc), 0) / withW.reduce((s, e) => s + n(e.peso_lb), 0) : null;
+    const done = L.filter((e) => e.estado === 'Terminado');
+    const k = $('kpis'); k.textContent = '';
+    [['Total gastado', usd(r2(compras + gc)), L.length + ' envíos'], ['Envíos terminados', String(done.length), (L.length - done.length) + ' en curso'],
+     ['Costo real por libra', perLb ? usd(r2(perLb)) : '—', 'Facturas ÷ peso, incluye mínimos'], ['Flete sobre compra', compras ? Math.round(gc / compras * 100) + '%' : '—', 'Cuánto suma traerlo']]
+      .forEach(([a, b, c]) => k.append(h('div', null, h('div', { class: 'eyebrow' }, a), h('div', { class: 'v' }, b), h('div', { class: 'n' }, c))));
+    // months
+    const g = {};
+    L.forEach((e) => { if (!e.f_compra) return; const m = e.f_compra.slice(0, 7); g[m] = g[m] || { c: 0, f: 0 }; g[m].c += n(e.total_compra) || 0; g[m].f += n(e.factura_gc) || 0; });
+    const ms = Object.keys(g).sort(), max = Math.max(1, ...ms.map((m) => g[m].c + g[m].f));
+    const box = $('months'); box.textContent = '';
+    if (!ms.length) box.append(h('p', { class: 'hint' }, 'Aparecerá cuando registres compras con fecha.'));
+    ms.forEach((m) => { const [y, mo] = m.split('-'); const v = g[m];
+      box.append(h('div', { class: 'brow' }, h('span', { class: 'm' }, M[Number(mo) - 1] + ' ' + y.slice(2)), h('div', { class: 'track', role: 'img', 'aria-label': 'Compras ' + usd(r2(v.c)) + ', Gold Coast ' + usd(r2(v.f)) }, h('span', { style: 'width:' + (v.c / max * 100) + '%;background:var(--buy)' }), h('span', { style: 'width:' + (v.f / max * 100) + '%;background:var(--air)' })), h('span', { class: 'tot' }, usd(r2(v.c + v.f))))); });
+    // times
+    const avg = (arr) => (arr.length ? Math.round(arr.reduce((s, x) => s + x, 0) / arr.length * 10) / 10 : null);
+    const a1 = avg(L.map((e) => days(e.f_compra, e.f_miami)).filter((x) => x != null && x >= 0));
+    const a2 = avg(L.map((e) => days(e.f_miami, e.f_retiro)).filter((x) => x != null && x >= 0));
+    const a3 = avg(L.map((e) => days(embarqueDate(e.embarque), e.f_retiro)).filter((x) => x != null && x >= 0));
+    const tm = $('times'); tm.textContent = '';
+    [['Compra → Miami', a1], ['Miami → retiro', a2], ['Embarque → retiro', a3]].forEach(([a, v]) => tm.append(h('div', null, h('div', { class: 'eyebrow' }, a), h('div', { class: 'v' }, v == null ? '—' : v + ' d'), h('div', { class: 'n' }, v == null ? 'Sin datos aún' : 'días en promedio'))));
+    // by store
+    const st = {};
+    L.forEach((e) => { const t = (e.tienda || '').trim() || 'Sin tienda'; st[t] = st[t] || { k: 0, c: 0, f: 0 }; st[t].k++; st[t].c += n(e.total_compra) || 0; st[t].f += n(e.factura_gc) || 0; });
+    const tb = $('by-store').tBodies[0]; tb.textContent = '';
+    Object.entries(st).sort((a, b) => (b[1].c + b[1].f) - (a[1].c + a[1].f)).forEach(([t, v]) => tb.append(h('tr', null, h('td', null, t), h('td', { class: 'r' }, String(v.k)), h('td', { class: 'r' }, usd(r2(v.c))), h('td', { class: 'r' }, usd(r2(v.f))), h('td', { class: 'r' }, h('b', null, usd(r2(v.c + v.f)))))));
+    if (!L.length) tb.append(h('tr', null, h('td', { colspan: 5, style: 'color:var(--muted)' }, 'Sin envíos todavía')));
+    const dl = $('stores'); dl.textContent = '';
+    [...new Set(['Amazon', 'Buscalibre', 'eBay', 'Walmart', 'B&H', 'AliExpress', ...L.map((e) => e.tienda).filter(Boolean)])].forEach((t) => dl.append(h('option', { value: t })));
+  }
+
+  /* ---------- Tasks ---------- */
+  function renderTasks() {
+    const ul = $('tasks'); ul.textContent = '';
+    if (S.tasks == null) { ul.append(h('li', { class: 'loading' }, 'Cargando…')); return; }
+    const list = S.tasks.slice().sort((a, b) => (a.hecho - b.hecho) || String(a.fecha || '9').localeCompare(String(b.fecha || '9')));
+    if (!list.length) ul.append(h('li', { class: 'hint', style: 'padding:10px 0' }, 'Sin pendientes.'));
+    const t0 = todayISO();
+    list.forEach((t) => {
+      const d = t.fecha ? days(t0, t.fecha) : null;
+      const cls = 'due' + (!t.hecho && d != null ? (d < 0 ? ' late' : d <= 3 ? ' soon' : '') : '');
+      const txt = t.fecha ? fmtD(t.fecha) + (!t.hecho && d != null ? (d < 0 ? ' · vencida' : d === 0 ? ' · hoy' : ' · ' + d + ' d') : '') : '';
+      const cb = h('input', { type: 'checkbox', 'aria-label': 'Hecho', disabled: S.ro || !S.db }); cb.checked = !!t.hecho;
+      cb.addEventListener('change', async () => { try { await S.db.collection('pendientes').doc(t.id).set({ ...strip(t), hecho: cb.checked }); } catch (e) { handleErr(e); } });
+      const del = h('button', { class: 'x', type: 'button', 'aria-label': 'Borrar tarea', disabled: S.ro || !S.db, onclick: async () => { try { await S.db.collection('pendientes').doc(t.id).delete(); } catch (e) { handleErr(e); } } }, '×');
+      ul.append(h('li', { class: 'task' + (t.hecho ? ' done' : '') }, cb, h('div', null, h('div', { class: 'tt' }, t.tarea), t.detalle ? h('div', { class: 'td' }, t.detalle) : null), h('div', { style: 'display:flex;align-items:center' }, h('span', { class: cls }, txt), del)));
+    });
+  }
+  $('nt-add').addEventListener('click', async () => {
+    const txt = $('nt-text').value.trim(); if (!txt) { $('nt-text').focus(); return; } if (!S.db) return;
+    try { await S.db.collection('pendientes').add({ tarea: txt, fecha: $('nt-date').value || null, detalle: null, hecho: false }); $('nt-text').value = ''; $('nt-date').value = ''; toast('Tarea añadida'); } catch (e) { handleErr(e); }
+  });
+  $('nt-text').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('nt-add').click(); });
+
+  /* ---------- Freight + calculator ---------- */
+  function estimateFreight(mode, billLb, ft3) {
+    const c = S.cfg;
+    if (mode === 'maritimo') {
+      const rate = n(c.sea_rate), min = n(c.sea_min);
+      if (rate == null) return { flete: null, msg: 'Falta la tarifa marítima: agrégala en Tarifas.' };
+      if (ft3 == null) return { flete: null, msg: 'El marítimo se cobra por volumen: faltan las medidas.' };
+      const raw = ft3 * rate; return { flete: r2(Math.max(min || 0, raw)), min: min != null && raw < min };
+    }
+    const rate = n(c.air_rate), min = n(c.air_min) || 0;
+    if (rate == null || billLb == null) return { flete: null, msg: '' };
+    const raw = billLb * rate; return { flete: r2(Math.max(min, raw)), min: raw < min };
+  }
+  const Q = (k) => $('q-' + k);
+  let lastQuote = null;
+  function calc() {
+    const met = Q('units').value === 'met', mode = Q('mode').value;
+    Q('wl').textContent = met ? 'Peso c/u (kg)' : 'Peso c/u (lb)'; Q('ll').textContent = met ? 'Largo (cm)' : 'Largo (in)'; Q('al').textContent = met ? 'Ancho (cm)' : 'Ancho (in)'; Q('hl').textContent = met ? 'Alto (cm)' : 'Alto (in)';
+    $('ticket').style.setProperty('--mode-c', mode === 'maritimo' ? 'var(--sea)' : 'var(--air)');
+    const num = (k) => { const v = parseFloat(Q(k).value); return isFinite(v) && v > 0 ? v : 0; };
+    const qty = Math.max(1, Math.round(num('qty')) || 1), w = num('w') * (met ? 2.20462 : 1), pad = Number(Q('box').value);
+    const dim = (k) => { const v = num(k) / (met ? 2.54 : 1); return v > 0 ? v + 2 * pad : 0; };
+    const L = dim('l'), A = dim('a'), H = dim('h'), hasDims = !!(L && A && H), price = num('p'), books = Q('books').checked;
+    const set = (id, t) => { $(id).textContent = t; };
+    lastQuote = null; Q('save').disabled = true;
+    if (!w && !hasDims) { ['o-real', 'o-vol', 'o-bill', 'o-flete', 'o-tax', 'o-lm', 'o-buy', 'o-total'].forEach((i) => set(i, '—')); set('o-fl', 'Flete'); $('o-msg').textContent = 'Escribe el peso y las medidas para ver la factura.'; $('o-msg').className = 'msg'; return; }
+    const real = w * qty, c = S.cfg, cap = n(c.cap) || 100, ft3 = hasDims ? (L * A * H * qty) / 1728 : null;
+    let bill, est, volTxt;
+    if (mode === 'maritimo') {
+      bill = real; volTxt = hasDims ? ft3.toFixed(2) + ' ft³' : 'sin medidas';
+      set('o-voll', 'Volumen'); set('o-billl', 'Se cobra por'); set('o-bill', hasDims ? ft3.toFixed(2) + ' ft³' : '—');
+      est = estimateFreight('maritimo', null, ft3); set('o-fl', 'Flete marítimo');
+    } else {
+      const vol = hasDims ? Math.max(n(c.vol_min) || 0, (L * A * H * qty) / (n(c.divisor) || 166)) : 0;
+      bill = Math.max(real, vol); volTxt = hasDims ? vol.toFixed(2) + ' lb' : 'sin medidas';
+      set('o-voll', 'Peso volumétrico'); set('o-billl', 'Peso que cobran'); set('o-bill', bill.toFixed(2) + ' lb' + (vol > real ? ' · volumétrico' : ''));
+      est = estimateFreight('aereo', bill, null); set('o-fl', 'Flete (' + bill.toFixed(2) + ' × $' + (n(c.air_rate) || 0).toFixed(2) + ')');
+    }
+    set('o-real', real.toFixed(2) + ' lb'); set('o-vol', volTxt);
+    const overCap = !books && price > cap;
+    set('o-flete', est.flete == null ? '—' : usd(est.flete) + (est.min ? ' · mínimo' : ''));
+    set('o-tax', books ? '$0.00 · libros' : overCap ? 'posibles, no incluidos' : '$0.00');
+    set('o-lm', est.flete == null ? '—' : usd(est.flete)); set('o-buy', price ? usd(price) : '—'); set('o-total', price && est.flete != null ? usd(r2(price + est.flete)) : '—');
+    const notes = [];
+    if (est.msg) notes.push(est.msg);
+    if (mode === 'aereo' && !hasDims) notes.push('Sin medidas no sé si cobrarán por volumen: el flete podría subir.');
+    if (overCap) notes.push('Pasa de $' + cap + ': la aduana podría cobrar impuestos que esta cuenta no incluye.');
+    if (!notes.length) notes.push('Estimado. El monto final depende del peso y la caja que mida Gold Coast en Miami.');
+    $('o-msg').textContent = notes.join(' '); $('o-msg').className = 'msg' + (est.msg || overCap || (mode === 'aereo' && !hasDims) ? ' warn' : '');
+    if (est.flete != null) {
+      lastQuote = { producto: Q('name').value.trim() || 'Producto sin nombre', tienda: Q('store').value.trim() || null, envio: mode, precio_usd: price || null, cantidad: qty, peso_lb: r2(real),
+        peso_cobrado_lb: mode === 'aereo' ? r2(bill) : null, pies3: ft3 != null ? r2(ft3) : null, flete_usd: est.flete, arancel: books ? '$0.00 · libros' : overCap ? 'Posibles, no incluidos' : '$0.00',
+        total_usd: price ? r2(price + est.flete) : null, fuente: 'Calculadora', fecha: todayISO(), creado: new Date().toISOString() };
+      Q('save').disabled = S.ro || !S.db;
+    }
+  }
+  ['name', 'store', 'mode', 'units', 'qty', 'w', 'box', 'l', 'a', 'h', 'p', 'books'].forEach((k) => { Q(k).addEventListener('input', calc); Q(k).addEventListener('change', calc); });
+  Q('save').addEventListener('click', async () => { if (!lastQuote || !S.db) return; try { await S.db.collection('cotizaciones').add(lastQuote); toast('Cotización guardada'); } catch (e) { handleErr(e); } });
+  function renderQuotes() {
+    const box = $('quotes'); box.textContent = '';
+    if (S.quotes == null) { box.append(h('p', { class: 'loading' }, 'Cargando…')); return; }
+    if (!S.quotes.length) { box.append(h('div', { class: 'panel empty', style: 'grid-column:1/-1' }, h('b', null, 'Aún no hay cotizaciones'), 'Guarda una desde la calculadora, o súbeme en el chat el screenshot de lo que quieres traer.')); return; }
+    S.quotes.slice().sort((a, b) => String(b.creado || '').localeCompare(String(a.creado || ''))).forEach((q) => {
+      const del = h('button', { class: 'btn small danger', type: 'button', disabled: S.ro || !S.db }, 'Eliminar');
+      del.addEventListener('click', async () => { if (!del.classList.contains('armed')) { del.classList.add('armed'); del.textContent = '¿Seguro?'; return; } try { await S.db.collection('cotizaciones').doc(q.id).delete(); toast('Cotización eliminada'); } catch (e) { handleErr(e); } });
+      const conv = h('button', { class: 'btn small', type: 'button', disabled: S.ro || !S.db, onclick: () => { showTab($('envios')); openEditor(null, { estado: 'En espera', tienda: q.tienda, articulos: q.producto + (q.cantidad > 1 ? ' (x' + q.cantidad + ')' : ''), total_compra: q.precio_usd, metodo: q.envio, f_compra: todayISO(), notas: 'Cotizado: flete estimado ' + usd(q.flete_usd) }); } }, 'Convertir en envío');
+      box.append(h('article', { class: 'quote' },
+        h('div', { class: 'row', style: 'justify-content:space-between' }, h('span', { class: 'nm' }, q.producto), h('span', { class: 'hint' }, [q.tienda, q.fecha ? fmtD(q.fecha) : null].filter(Boolean).join(' · '))),
+        h('div', { class: 'rc' }, h('span', { class: 'k' }, 'Precio en tienda'), h('span', null, q.precio_usd == null ? '—' : usd(q.precio_usd)), h('span', { class: 'k' }, 'Flete Gold Coast'), h('span', null, usd(q.flete_usd)), h('span', { class: 'k' }, 'Aranceles'), h('span', null, q.arancel || '—'), h('span', { class: 'k t' }, 'Costo total'), h('span', { class: 't' }, q.total_usd == null ? '—' : usd(q.total_usd))),
+        q.fuente ? h('div', { class: 'hint' }, q.fuente) : null,
+        h('div', { class: 'row' }, conv, del)));
+    });
+  }
+
+  /* ---------- Settings ---------- */
+  const CFGMAP = [['c-air-rate', 'air_rate'], ['c-air-min', 'air_min'], ['c-div', 'divisor'], ['c-vmin', 'vol_min'], ['c-sea-rate', 'sea_rate'], ['c-sea-min', 'sea_min'], ['c-dias', 'dias_retiro'], ['c-cap', 'cap'], ['c-cash', 'cash']];
+  function renderCfg() { CFGMAP.forEach(([id, k]) => { const el = $(id); if (document.activeElement !== el) el.value = S.cfg[k] == null ? '' : S.cfg[k]; el.disabled = S.ro || !S.db; }); $('cfg-save').disabled = S.ro || !S.db; }
+  $('cfg-save').addEventListener('click', async () => {
+    const body = {}; CFGMAP.forEach(([id, k]) => { body[k] = n($(id).value); });
+    if (body.air_rate == null || !body.divisor) { toast('La tarifa aérea y el divisor son obligatorios'); return; }
+    try { await S.db.doc('config/tarifas').set(body); toast('Ajustes guardados'); } catch (e) { handleErr(e); }
+  });
+
+  function renderAll() { renderManifest(); renderAlerts(); renderChips(); renderLedger(); renderResumen(); renderTasks(); renderQuotes(); renderCfg(); calc(); $('new').disabled = S.ro || !S.db; $('nt-add').disabled = S.ro || !S.db; }
+  renderAll();
+
+  /* ---------- Data (stored on this device) ---------- */
+  const KEY = 'control-importaciones-v1';
+  const STORE = (() => {
+    let data = { envios: {}, pendientes: {}, cotizaciones: {}, config: {} };
+    try { const raw = localStorage.getItem(KEY); if (raw) data = Object.assign(data, JSON.parse(raw)); } catch (e) { /* empty start */ }
+    const subs = {};
+    const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); return true; } catch (e) { toast('No se pudo guardar en el teléfono'); return false; } };
+    const emit = (col) => (subs[col] || []).forEach((fn) => fn());
+    const list = (col) => Object.entries(data[col] || {}).map(([id, v]) => ({ id, ...v }));
+    const docRef = (col, id) => ({
+      set: async (b) => { data[col] = data[col] || {}; data[col][id] = JSON.parse(JSON.stringify(b)); persist(); emit(col); },
+      delete: async () => { if (data[col]) delete data[col][id]; persist(); emit(col); },
+    });
+    const db = {
+      collection: (col) => ({ doc: (id) => docRef(col, id), add: async (b) => { const id = col.slice(0, 1) + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); await docRef(col, id).set(b); return { id }; } }),
+      doc: (path) => { const [col, id] = path.split('/'); return docRef(col, id); },
+    };
+    return {
+      db, list, get: (col, id) => (data[col] || {})[id],
+      on: (col, fn) => { (subs[col] = subs[col] || []).push(fn); },
+      dump: () => JSON.parse(JSON.stringify(data)),
+      load: (d) => { data = { envios: {}, pendientes: {}, cotizaciones: {}, config: {}, ...d }; persist(); ['envios', 'pendientes', 'cotizaciones', 'config'].forEach(emit); },
+    };
+  })();
+  S.db = STORE.db;
+  const pull = () => {
+    S.env = STORE.list('envios'); S.tasks = STORE.list('pendientes'); S.quotes = STORE.list('cotizaciones');
+    S.cfg = { ...DEF_CFG, ...(STORE.get('config', 'tarifas') || {}) };
+  };
+  STORE.on('envios', () => { S.env = STORE.list('envios'); renderManifest(); renderAlerts(); renderChips(); renderLedger(); renderResumen(); });
+  STORE.on('pendientes', () => { S.tasks = STORE.list('pendientes'); renderTasks(); });
+  STORE.on('cotizaciones', () => { S.quotes = STORE.list('cotizaciones'); renderQuotes(); });
+  STORE.on('config', () => { S.cfg = { ...DEF_CFG, ...(STORE.get('config', 'tarifas') || {}) }; renderCfg(); renderManifest(); renderAlerts(); renderLedger(); calc(); });
+  pull(); renderAll();
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { /* optional */ }
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+})();
+</script>
+</body>
+</html>
