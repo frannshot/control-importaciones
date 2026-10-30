@@ -338,6 +338,57 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   .toolbar .row { width: 100%; }
   .search { flex: 1 1 100%; width: 100%; }
 }
+
+/* Compact order layout (closer to an order-history page) */
+.wrap { max-width: 1000px; gap: 16px; }
+body { font-size: 14px; }
+h1 { font-size: 30px; }
+.ohdr h2 { font-size: 24px; }
+.osearch .search { padding: 6px 10px; font-size: 14px; }
+#chips .chip { padding: 7px 10px; font-size: 14px; }
+.obar { font-size: 13.5px; }
+.obar select { padding: 4px 8px; font-size: 13px; }
+.btn { padding: 5px 12px; font-size: 13px; }
+.orders { gap: 14px; }
+.order { border-radius: 8px; }
+.ohead { padding: 10px 16px; gap: 6px 28px; }
+.ohead .k { font-size: 11px; }
+.ohead .v { font-size: 13px; }
+.link { font-size: 13px; }
+.obody { padding: 12px 16px 14px; grid-template-columns: minmax(0, 1fr) 200px; gap: 14px; }
+.ostatus { font-size: 16px; }
+.osub { font-size: 13px; }
+.ostatus + .osub { margin-bottom: 10px; }
+.oacts { gap: 6px; }
+.pill { padding: 5px 12px; font-size: 13px; }
+.ocar { gap: 8px; margin-top: 2px; }
+.ocar .arr { width: 30px; height: 34px; font-size: 18px; }
+.oitem { flex-basis: 170px; padding-right: 12px; gap: 4px; }
+.oitem .thumb { height: 110px; }
+.oitem .iname { font-size: 13px; line-height: 1.35; }
+.oitems.rows .oitem { grid-template-columns: 80px minmax(0, 1fr); column-gap: 14px; }
+.oitems.rows .oitem .thumb { width: 80px; height: 115px; }
+.oitems.rows .oitem .iname { font-size: 13.5px; }
+.ofoot { padding: 8px 16px; font-size: 12.5px; }
+.ototal { font-size: 13px; }
+@media (max-width: 680px) {
+  .obody { grid-template-columns: 1fr; padding: 12px; }
+  .ohead { padding: 9px 12px; gap: 6px 18px; }
+  .oitem { flex-basis: 130px; padding-right: 10px; }
+  .oitem .thumb { height: 100px; }
+  .oitems.rows .oitem { grid-template-columns: 70px minmax(0, 1fr); }
+  .oitems.rows .oitem .thumb { width: 70px; height: 100px; }
+  .oacts { gap: 6px; }
+  .oacts .pill { flex: 1 1 30%; padding: 5px 8px; font-size: 12.5px; }
+  .ofoot { padding: 8px 12px; }
+  .ohead > div:nth-child(3) { display: none; }
+  .ohead .right { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .ohead .right .k { font-size: 10.5px; }
+  .ostatus { font-size: 15.5px; }
+  .ostatus + .osub { margin-bottom: 8px; }
+  .obody { gap: 10px; }
+}
+.oitems.rows .oitem { grid-template-rows: auto 1fr; }
 </style>
 </head>
 <body>
