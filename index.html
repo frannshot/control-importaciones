@@ -542,9 +542,9 @@ h1 { font-size: 30px; }
       <div class="row" style="margin-top:16px"><button class="btn primary" id="cfg-save" type="button">Guardar</button><span class="hint">Tus dos embarques de prueba tardaron 5 días del embarque al retiro.</span></div>
     </section>
     <section id="sync">
-      <div class="sect"><h2>Correos de Gold Coast</h2><span class="meta">Recibos y facturas se cargan solos</span></div>
+      <div class="sect"><h2>Sincronización</h2><span class="meta">Tus pedidos en todos tus dispositivos · recibos y facturas de Gold Coast se cargan solos</span></div>
       <div class="fields">
-        <label class="f wide"><span>Clave de sincronización</span><input id="sync-key" type="password" autocomplete="off" placeholder="Pega aquí la clave que te dio Claude"></label>
+        <label class="f wide"><span>Clave de sincronización</span><input id="sync-key" type="password" autocomplete="off" placeholder="La misma clave en el iPhone y en la computadora"></label>
       </div>
       <div class="row" style="margin-top:12px"><button class="btn primary" id="sync-save" type="button">Guardar clave</button><button class="btn" id="sync-now" type="button">Sincronizar ahora</button><span class="hint" id="sync-status">Sin configurar</span></div>
     </section>
@@ -1062,7 +1062,7 @@ h1 { font-size: 30px; }
       const cur = Object.keys(STORE.dump().envios || {}).length;
       if (cur && !confirmBox('Esto reemplaza tus ' + cur + ' envíos actuales por los ' + nEnv + ' de la copia. Pulsa “Restaurar” otra vez para confirmar.')) return;
       if (obj.imagenes && typeof obj.imagenes === 'object') { for (const [k, v] of Object.entries(obj.imagenes)) { if (typeof v === 'string' && v.startsWith('data:image/')) await IMG.put(k, v); } }
-      STORE.load(d); toast(nEnv + ' pedidos restaurados');
+      STORE.load(d, true); toast(nEnv + ' pedidos restaurados');
     } catch (err) { toast('Ese archivo no es una copia válida'); }
   });
   let armedRestore = 0;
@@ -1213,30 +1213,110 @@ h1 { font-size: 30px; }
   function renderAll() { renderManifest(); renderAlerts(); renderChips(); renderLedger(); renderResumen(); renderTasks(); renderQuotes(); renderCfg(); calc(); $('new').disabled = S.ro || !S.db; $('nt-add').disabled = S.ro || !S.db; }
   renderAll();
 
-  /* ---------- Data (stored on this device) ---------- */
-  const KEY = 'control-importaciones-v1';
+  /* ---------- Data: one copy on the server (protected by the key), cached on each device ---------- */
+  const KEY = 'control-importaciones-v1', QKEY = KEY + '-cola', RKEY = KEY + '-rev';
+  const DCOLS = ['envios', 'pendientes', 'cotizaciones', 'config'];
+  const rd = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+  const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
   const STORE = (() => {
-    let data = { envios: {}, pendientes: {}, cotizaciones: {}, config: {} };
-    try { const raw = localStorage.getItem(KEY); if (raw) data = Object.assign(data, JSON.parse(raw)); } catch (e) { /* empty start */ }
+    let data = { envios: {}, pendientes: {}, cotizaciones: {}, config: {}, ...rd(KEY, {}) };
+    let queue = rd(QKEY, []);
     const subs = {};
-    const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); return true; } catch (e) { toast('No se pudo guardar en el teléfono'); return false; } };
+    const persist = () => { if (!wr(KEY, data)) toast('No se pudo guardar en este dispositivo'); wr(QKEY, queue); };
     const emit = (col) => (subs[col] || []).forEach((fn) => fn());
     const list = (col) => Object.entries(data[col] || {}).map(([id, v]) => ({ id, ...v }));
-    const docRef = (col, id) => ({
-      set: async (b) => { data[col] = data[col] || {}; data[col][id] = JSON.parse(JSON.stringify(b)); persist(); emit(col); },
-      delete: async () => { if (data[col]) delete data[col][id]; persist(); emit(col); },
-    });
+    const local = (col, id) => col === 'config' && id === 'sync'; // the key never leaves the device
+    const write = (col, id, body) => {
+      data[col] = data[col] || {};
+      if (body === null) delete data[col][id]; else data[col][id] = JSON.parse(JSON.stringify(body));
+      if (!local(col, id)) { queue = queue.filter((q) => !(q.col === col && q.id === id)); queue.push({ col, id, body: body === null ? null : data[col][id] }); }
+      persist(); emit(col); if (!local(col, id)) SYNC.soon();
+    };
+    const docRef = (col, id) => ({ set: async (b) => write(col, id, b), delete: async () => write(col, id, null) });
     const db = {
-      collection: (col) => ({ doc: (id) => docRef(col, id), add: async (b) => { const id = col.slice(0, 1) + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); await docRef(col, id).set(b); return { id }; } }),
+      collection: (col) => ({ doc: (id) => docRef(col, id), add: async (b) => { const id = col.slice(0, 1) + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); write(col, id, b); return { id }; } }),
       doc: (path) => { const [col, id] = path.split('/'); return docRef(col, id); },
     };
     return {
       db, list, get: (col, id) => (data[col] || {})[id],
       on: (col, fn) => { (subs[col] = subs[col] || []).push(fn); },
-      dump: () => JSON.parse(JSON.stringify(data)),
-      load: (d) => { data = { envios: {}, pendientes: {}, cotizaciones: {}, config: {}, ...d }; persist(); ['envios', 'pendientes', 'cotizaciones', 'config'].forEach(emit); },
+      dump: () => { const d = JSON.parse(JSON.stringify(data)); if (d.config) delete d.config.sync; return d; },
+      queue: () => queue.slice(),
+      sent: (ops) => { queue = queue.filter((q) => !ops.includes(q)); wr(QKEY, queue); },
+      // Server copy wins, then anything not yet sent is laid on top again.
+      remote: (srv) => {
+        const sync = (data.config || {}).sync;
+        const next = {}; DCOLS.forEach((c) => { next[c] = { ...(srv[c] || {}) }; });
+        if (sync) next.config.sync = sync;
+        for (const q of queue) { if (q.body === null) delete next[q.col][q.id]; else next[q.col][q.id] = q.body; }
+        const changed = DCOLS.filter((c) => JSON.stringify(next[c]) !== JSON.stringify(data[c] || {}));
+        data = next; persist(); changed.forEach(emit); return changed;
+      },
+      load: (d, upload) => { const sync = (data.config || {}).sync; data = { envios: {}, pendientes: {}, cotizaciones: {}, config: {}, ...d }; if (sync) data.config.sync = sync; else delete data.config.sync; queue = []; persist(); DCOLS.forEach(emit); if (upload) SYNC.replace(); },
     };
   })();
+
+  const SYNC = (() => {
+    let busy = false, timer = null, again = false;
+    const key = () => ((STORE.get('config', 'sync') || {}).key) || '';
+    const st = (t) => { const el = $('sync-status'); if (el) el.textContent = t; };
+    const call = (method, body, qs) => fetch('/.netlify/functions/data' + (qs || ''), { method, cache: 'no-store', headers: { 'x-key': key(), 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const mini = () => {
+      const el = $('sync-mini'); if (!el) return;
+      if (!key()) { el.textContent = '· Solo en este dispositivo'; return; }
+      const n = STORE.queue().length; const last = rd(RKEY, {}).at;
+      if (n) { el.textContent = '· ' + n + ' cambio' + (n === 1 ? '' : 's') + ' por subir'; return; }
+      if (!last) { el.textContent = '· Sin sincronizar'; return; }
+      const m = Math.round((Date.now() - new Date(last)) / 60000);
+      el.textContent = '· Sincronizado ' + (m < 1 ? 'ahora' : 'hace ' + m + ' min');
+    };
+    async function run(manual) {
+      if (!key()) { if (manual) toast('Primero guarda la clave'); st('Sin configurar: tus datos están solo en este dispositivo'); mini(); return; }
+      if (busy) { again = true; return; }
+      if (!navigator.onLine) { st('Sin conexión: los cambios se subirán al volver'); mini(); return; }
+      busy = true; if (manual) st('Sincronizando…');
+      try {
+        const ops = STORE.queue();
+        if (ops.length) {
+          const r = await call('POST', { ops: ops.map(({ col, id, body }) => ({ col, id, body })) });
+          if (r.status === 401) throw Object.assign(new Error('key'), { key: true });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          STORE.sent(ops);
+        }
+        const meta = rd(RKEY, {});
+        const r = await call('GET', null, '?since=' + (ops.length ? -1 : (meta.rev ?? -1)));
+        if (r.status === 401) throw Object.assign(new Error('key'), { key: true });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        if (j.data && j.empty && !meta.rev && Object.keys(STORE.dump().envios).length) {
+          await replace(true); return; // first device: its data becomes the shared copy
+        }
+        if (j.data) {
+          if (meta.rev == null && Object.keys(STORE.dump().envios).length) wr(KEY + '-antes-de-sincronizar', STORE.dump());
+          const changed = STORE.remote(j.data);
+          if (meta.rev != null && changed.includes('envios') && !manual) toast('Pedidos actualizados');
+        }
+        wr(RKEY, { rev: j.rev, at: new Date().toISOString() });
+        if (manual) toast('Todo al día');
+        st('Sincronizado ' + new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) + ' · ' + Object.keys(STORE.dump().envios).length + ' pedidos en la nube');
+      } catch (e) {
+        if (e.key) { st('La clave no es correcta'); if (manual) toast('La clave no es correcta'); }
+        else { st('No se pudo sincronizar. Se reintentará solo.'); if (manual) toast('No se pudo sincronizar'); }
+      } finally { busy = false; mini(); if (again) { again = false; soon(); } }
+    }
+    async function replace(first) {
+      const d = STORE.dump();
+      const body = { replace: d };
+      if (first) body.applied = (STORE.get('config', 'sync') || {}).applied || {};
+      const r = await call('POST', body);
+      if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { key: r.status === 401 });
+      STORE.sent(STORE.queue());
+      wr(RKEY, {}); busy = false; toast(first ? 'Tus pedidos ya están en la nube' : 'Copia subida a la nube'); return run(false);
+    }
+    function soon() { clearTimeout(timer); timer = setTimeout(() => run(false), 600); }
+    return { run, soon, mini, replace: () => { if (key()) replace(false).catch(() => toast('No se pudo subir la copia')); } };
+  })();
+
   S.db = STORE.db;
   const pull = () => {
     S.env = STORE.list('envios'); S.tasks = STORE.list('pendientes'); S.quotes = STORE.list('cotizaciones');
@@ -1247,89 +1327,20 @@ h1 { font-size: 30px; }
   STORE.on('cotizaciones', () => { S.quotes = STORE.list('cotizaciones'); renderQuotes(); });
   STORE.on('config', () => { S.cfg = { ...DEF_CFG, ...(STORE.get('config', 'tarifas') || {}) }; renderCfg(); renderManifest(); renderAlerts(); renderLedger(); calc(); });
 
-  /* ---------- Gold Coast e-mail sync ---------- */
-  const normT = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  const trackMatch = (a, b) => { a = normT(a); b = normT(b); if (a.length < 10 || b.length < 10) return false; return a === b || a.endsWith(b) || b.endsWith(a); };
-  const cleanTrack = (s) => { s = normT(s); const m = s.match(/^420\d{5}(9[2-5]\d{18,24})$/); return m ? m[1] : s; };
-  const niceName = (s) => { s = String(s || '').replace(/ITEM FROM:\s*[A-Z0-9 .&'-]+?(?=\s+\d|\s*$)/i, '').replace(/\b[A-Z0-9]{12,}\b/g, '').replace(/[-\s]+$/, '').trim(); if (!s) return null; s = s.toLowerCase().replace(/\bbooks\b/g, 'libros').replace(/\bbook\b/g, 'libro'); return s.charAt(0).toUpperCase() + s.slice(1); };
-  const titleCase = (s) => String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-  function findEnv(d, list) {
-    let e = list.find((x) => x.recibo && String(x.recibo).replace(/-\d+$/, '') === d.recibo);
-    if (!e && d.trackings && d.trackings.length) e = list.find((x) => x.tracking && d.trackings.some((t) => trackMatch(t, x.tracking)));
-    return e || null;
-  }
-  async function applyDocs(docs) {
-    const cfg = STORE.get('config', 'sync') || {};
-    const applied = { ...(cfg.applied || {}) };
-    const fresh = docs.filter((d) => applied[d.id] !== d.updatedAt)
-      .sort((a, b) => (a.tipo === b.tipo ? 0 : a.tipo === 'recibo' ? -1 : 1) || String(a.fecha).localeCompare(String(b.fecha)));
-    let changed = 0, created = 0;
-    for (const d of fresh) {
-      const list = STORE.list('envios');
-      const e = findEnv(d, list); const isNew = !e;
-      const b = e ? { ...strip(e) } : { estado: 'En Miami', metodo: d.metodo || 'aereo', tienda: d.tienda ? titleCase(d.tienda) : null, items: [], articulos: null, creado: new Date().toISOString() };
-      b.recibo = b.recibo || d.recibo;
-      if (!b.f_miami && d.fecha) b.f_miami = d.fecha;
-      if (!b.estado || b.estado === 'En espera') b.estado = 'En Miami';
-      if (d.volumen != null) b.volumen_cuft = d.volumen;
-      if (d.tipo === 'recibo') {
-        if (!b.tracking && d.trackings && d.trackings[0]) b.tracking = cleanTrack(d.trackings[0]);
-        if (b.peso_lb == null && d.peso_real != null) b.peso_lb = Math.max(d.peso_real, d.peso_vol || 0);
-        if (!b.tienda && d.tienda) b.tienda = titleCase(d.tienda);
-        if (isNew) { const nm = niceName(d.contenido) || 'Paquete recibido en Miami'; b.items = [{ n: nm, img: null, url: null }]; b.articulos = nm; b.notas = 'Creado automáticamente con el recibo ' + d.recibo + ' de Gold Coast' + (d.valor_declarado != null ? '. Valor declarado: $' + Number(d.valor_declarado).toFixed(2) : '') + '. Completa la fecha de compra, el monto y los enlaces.'; }
-      } else {
-        if (d.total != null) { b.factura_gc = d.total; b.estado_flete = 'Confirmado'; }
-        if (d.embarque) b.embarque = d.embarque;
-        if (d.cobrado != null && d.cobrado_unidad === 'LB') b.peso_lb = d.cobrado;
-        if (!b.tracking && d.trackings && d.trackings[0]) b.tracking = cleanTrack(d.trackings[0]);
-        if (isNew) { const nm = niceName(d.notas) || 'Paquete facturado por Gold Coast'; b.items = [{ n: nm, img: null, url: null }]; b.articulos = nm; b.notas = 'Creado automáticamente con la factura ' + d.factura + ' de Gold Coast. Completa la fecha de compra, el monto y los enlaces.'; }
-      }
-      b.actualizado = new Date().toISOString();
-      if (isNew) { await S.db.collection('envios').add(b); created++; } else { await S.db.collection('envios').doc(e.id).set(b); changed++; }
-      applied[d.id] = d.updatedAt;
-    }
-    await S.db.doc('config/sync').set({ ...cfg, applied, last: new Date().toISOString() });
-    return { changed, created };
-  }
-  let syncing = false;
-  function syncMini() {
-    const cfg = STORE.get('config', 'sync') || {};
-    const el = $('sync-mini'); if (!el) return;
-    if (!cfg.key) { el.textContent = ''; return; }
-    if (!cfg.last) { el.textContent = '· Gold Coast: sin sincronizar'; return; }
-    const m = Math.round((Date.now() - new Date(cfg.last)) / 60000);
-    el.textContent = '· Gold Coast al día ' + (m < 1 ? 'ahora' : 'hace ' + m + ' min');
-  }
-  async function syncGC(manual) {
-    const cfg = STORE.get('config', 'sync') || {};
-    const st = $('sync-status');
-    if (!cfg.key) { if (manual) toast('Primero guarda la clave de sincronización'); st.textContent = 'Sin configurar'; return; }
-    if (syncing || !navigator.onLine) return;
-    syncing = true; if (manual) st.textContent = 'Sincronizando…';
-    try {
-      const r = await fetch('/.netlify/functions/gc', { headers: { 'x-key': cfg.key }, cache: 'no-store' });
-      if (r.status === 401) { st.textContent = 'La clave no es correcta'; if (manual) toast('La clave no es correcta'); return; }
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const j = await r.json();
-      const res = await applyDocs(j.docs || []);
-      const msg = res.changed || res.created ? 'Gold Coast: ' + (res.changed ? res.changed + ' pedido' + (res.changed === 1 ? '' : 's') + ' actualizado' + (res.changed === 1 ? '' : 's') : '') + (res.changed && res.created ? ' y ' : '') + (res.created ? res.created + ' nuevo' + (res.created === 1 ? '' : 's') : '') : null;
-      if (msg) toast(msg); else if (manual) toast('Todo al día');
-      st.textContent = 'Última sincronización: ' + new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) + ' · ' + (j.docs || []).length + ' documentos de Gold Coast';
-    } catch (e) { st.textContent = 'No se pudo sincronizar. Revisa tu conexión.'; if (manual) toast('No se pudo sincronizar'); }
-    finally { syncing = false; syncMini(); }
-  }
   $('sync-save').addEventListener('click', async () => {
     const k = $('sync-key').value.trim(); if (!k) { toast('Pega la clave primero'); return; }
     const cfg = STORE.get('config', 'sync') || {};
     await S.db.doc('config/sync').set({ ...cfg, key: k }); $('sync-key').value = ''; $('sync-key').placeholder = 'Clave guardada';
-    toast('Clave guardada'); syncGC(true);
+    toast('Clave guardada'); SYNC.run(true);
   });
-  $('sync-now').addEventListener('click', () => syncGC(true));
+  $('sync-now').addEventListener('click', () => SYNC.run(true));
   pull(); renderAll();
-  if ((STORE.get('config', 'sync') || {}).key) { $('sync-key').placeholder = 'Clave guardada'; setTimeout(() => syncGC(false), 800); }
-  syncMini();
-  setInterval(() => { if (document.visibilityState === 'visible') syncGC(false); syncMini(); }, 120000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncGC(false); });
+  if ((STORE.get('config', 'sync') || {}).key) { $('sync-key').placeholder = 'Clave guardada'; setTimeout(() => SYNC.run(false), 300); }
+  else $('sync-status').textContent = 'Sin configurar: tus datos están solo en este dispositivo';
+  SYNC.mini();
+  setInterval(() => { if (document.visibilityState === 'visible') SYNC.run(false); else SYNC.mini(); }, 45000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SYNC.run(false); });
+  window.addEventListener('online', () => SYNC.run(false));
   if (/github\.io$/i.test(location.hostname)) {
     const ro = $('ro'); ro.hidden = false; ro.textContent = '';
     ro.append('Esta dirección ya no se actualiza y no puede buscar fotos de productos. Usa la nueva: ', h('a', { href: 'https://importaciones-fran.netlify.app/', class: 'link' }, 'importaciones-fran.netlify.app'), '. Antes, toca “Copia de seguridad” aquí y luego “Restaurar” allá.');
