@@ -8,8 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Importaciones">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#e9ecef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f141a" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f4f1">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -17,24 +16,17 @@
 <style>
 /* Layout: a dispatcher's desk. Manifest strip on top, a sortable ledger of shipments (like the Excel), side sheet for editing. */
 :root {
-  --bg: #e9ecef; --panel: #ffffff; --panel-2: #f3f5f7; --ink: #141c25; --muted: #5d6a78; --line: #d3d9df;
+  --bg: #f4f4f1; --panel: #fcfcfa; --panel-2: #f0f0ec; --ink: #0f1111; --muted: #565959; --line: #d5d9d9;
   --buy: #d9560f; --air: #1f5fd6; --sea: #0d7c74; --ok: #19804a; --warn: #a96500; --bad: #c2312b;
   --st-wait: #b8620b; --st-mia: #1f5fd6; --st-tr: #6a3fc7; --st-done: #19804a;
   --focus: #1f5fd6;
-  --link: #007185; --link-h: #c45500; --yel: #ffd814; --yel-b: #f2c200; --yel-ink: #0f1111; --go: #067d62; --oh: #f0f2f2;
+  --link: #007185; --link-h: #c45500; --yel: #ffd814; --yel-b: #f2c200; --yel-ink: #0f1111; --go: #067d62; --oh: #ecece7;
   --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --r: 6px;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0f141a; --panel: #18202a; --panel-2: #1e2833; --ink: #e8edf2; --muted: #93a1b0; --line: #2c3845;
-  --buy: #f07a35; --air: #6c9cf3; --sea: #3fb5a9; --ok: #4cc283; --warn: #e2a23c; --bad: #ef6b63;
-  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; --link: #56c5d8; --link-h: #f5a35c; --go: #45c99c; --oh: #222c37; color-scheme: dark; } }
-:root[data-theme="dark"] {
-  --bg: #0f141a; --panel: #18202a; --panel-2: #1e2833; --ink: #e8edf2; --muted: #93a1b0; --line: #2c3845;
-  --buy: #f07a35; --air: #6c9cf3; --sea: #3fb5a9; --ok: #4cc283; --warn: #e2a23c; --bad: #ef6b63;
-  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; --link: #56c5d8; --link-h: #f5a35c; --go: #45c99c; --oh: #222c37; color-scheme: dark; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; -webkit-text-size-adjust: 100%; }
@@ -91,7 +83,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .search { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 10px; font-size: 16px; min-width: 0; width: min(260px, 100%); }
 .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--panel); border-radius: var(--r); padding: 7px 12px; cursor: pointer; font-weight: 600; font-size: 14px; white-space: nowrap; }
 .btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.btn.primary { background: var(--yel); color: var(--yel-ink); border-color: var(--yel-b); box-shadow: 0 2px 5px rgb(213 217 217 / .5); }
+.btn.primary:hover { background: #f7ca00; border-color: #f2c200; }
+.btn { border-radius: 99px; }
 .btn.small { padding: 4px 9px; font-size: 13px; }
 .btn.ghost { background: transparent; }
 .btn.danger { color: var(--bad); }
@@ -177,9 +171,18 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 .prog .s.half::before { background: linear-gradient(90deg, var(--go) 50%, var(--line) 50%); }
 .prog .s.now { color: var(--ink); font-weight: 700; }
 .prog .s.now:not(:last-child)::before { background: linear-gradient(90deg, var(--go) 50%, var(--line) 50%); }
-.oitems { display: flex; flex-direction: column; gap: 14px; }
-.oitem { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 14px; align-items: start; }
 .thumb { width: 90px; height: 90px; border-radius: 4px; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; color: #9aa4ae; flex: none; }
+.ocar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.ocar .arr { width: 40px; height: 64px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); font-size: 24px; cursor: pointer; box-shadow: 0 1px 3px rgb(15 17 17 / .12); }
+.ocar .arr:disabled { visibility: hidden; }
+.oitems { display: flex; flex-direction: row; gap: 22px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; padding: 2px 2px 8px; scrollbar-width: none; }
+.oitems::-webkit-scrollbar { display: none; }
+.oitem { flex: 0 0 200px; display: flex; flex-direction: column; gap: 6px; scroll-snap-align: start; min-width: 0; }
+.oitem > a:first-child { display: block; }
+.oitem .thumb { width: 100%; height: 180px; border: 0; background: transparent; border-radius: 0; }
+.oitem .thumb:not(:has(img)) { background: var(--panel-2); border-radius: 6px; }
+.oitem .iname { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.oitem .pill { margin-top: 4px; align-self: flex-start; padding: 6px 16px; }
 .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .thumb svg { width: 42%; height: 42%; }
 .iname { display: block; text-decoration: none; color: var(--link); font-size: 15px; line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
@@ -216,8 +219,10 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   .ohead { gap: 8px 20px; padding: 10px 14px; }
   .ohead .right { margin-left: 0; text-align: left; flex-basis: 100%; display: flex; gap: 12px; justify-content: space-between; align-items: baseline; }
   .obody { padding: 14px; }
-  .oitem { grid-template-columns: 72px minmax(0, 1fr); }
-  .oitem .thumb { width: 72px; height: 72px; }
+  .oitem { flex-basis: 150px; }
+  .oitem .thumb { height: 150px; }
+  .ocar { grid-template-columns: minmax(0, 1fr); }
+  .ocar .arr { display: none; }
   .prog .s { font-size: 10.5px; }
   .ohdr h2 { font-size: 22px; }
 }
@@ -281,7 +286,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
 .sheet header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 2px solid var(--ink); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .sheet .body { padding: 16px 18px 24px; }
-.sheet footer { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 12px 18px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.sheet footer { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 12px 18px calc(64px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: flex-start; gap: 8px 20px; flex-wrap: wrap; }
 
 /* Calculator */
 .ticket { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--mode-c, var(--air)); border-radius: var(--r); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; font-variant-numeric: tabular-nums; }
@@ -476,7 +481,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 <!-- Editor -->
 <div class="scrim" id="scrim" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-title">
-    <header><h2 id="ed-title">Nuevo pedido</h2><button class="x" id="ed-x" type="button" aria-label="Cerrar">×</button></header>
+    <header><h2 id="ed-title">Nuevo pedido</h2><div class="row"><button class="btn primary" id="ed-save" type="button">Guardar</button><button class="x" id="ed-x" type="button" aria-label="Cerrar">×</button></div></header>
     <form class="body" id="ed" novalidate>
       <div class="fields">
         <div class="group"><span>Compra</span></div>
@@ -507,8 +512,8 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
       </div>
     </form>
     <footer>
-      <div class="row"><button class="btn danger" id="ed-del" type="button">Eliminar</button><button class="btn ghost" id="ed-dup" type="button">Duplicar</button></div>
-      <div class="row"><button class="btn ghost" id="ed-cancel" type="button">Cancelar</button><button class="btn primary" id="ed-save" type="button">Guardar</button></div>
+      <div class="row"><button class="btn primary" id="ed-save2" type="button">Guardar</button><button class="btn ghost" id="ed-cancel" type="button">Cancelar</button></div>
+      <div class="row"><button class="btn ghost" id="ed-dup" type="button">Duplicar</button><button class="btn danger" id="ed-del" type="button">Eliminar</button></div>
     </footer>
   </div>
 </div>
@@ -713,18 +718,28 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     const prog = h('div', { class: 'prog', 'aria-label': 'Progreso: ' + (e.estado || 'En espera') });
     ['Comprado', 'En Miami', 'En tránsito', 'Retirado'].forEach((l, i) => prog.append(h('div', { class: 's' + (i < idx ? ' done' : i === idx ? ' done now' : '') }, l)));
     const list = h('div', { class: 'oitems' });
-    const show = items.slice(0, 4);
-    show.forEach((it) => { const nm = it.n || 'Artículo sin nombre'; const th = thumbEl(it.img); const lk = it.url ? h('a', { class: 'iname', href: it.url, target: '_blank', rel: 'noopener' }, nm) : h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, nm); const thw = it.url ? h('a', { href: it.url, target: '_blank', rel: 'noopener', 'aria-label': nm }, th) : th; list.append(h('div', { class: 'oitem' }, thw, h('div', null, lk, it.url ? null : h('div', { class: 'imeta' }, 'Agrega el enlace en “Editar pedido” para ver la foto')))); });
-    if (!items.length) list.append(h('div', { class: 'oitem' }, thumbEl(null), h('div', null, h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, 'Agrega los artículos de este pedido'))));
-    if (items.length > 4) list.append(h('div', { class: 'imore' }, 'y ' + (items.length - 4) + (items.length - 4 === 1 ? ' artículo más' : ' artículos más')));
+    items.forEach((it) => {
+      const nm = it.n || 'Artículo sin nombre'; const th = thumbEl(it.img);
+      const lk = it.url ? h('a', { class: 'iname', href: it.url, target: '_blank', rel: 'noopener' }, nm) : h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, nm);
+      const thw = it.url ? h('a', { href: it.url, target: '_blank', rel: 'noopener', 'aria-label': nm }, th) : th;
+      list.append(h('div', { class: 'oitem' }, thw, lk,
+        it.url ? h('a', { class: 'pill y', href: it.url, target: '_blank', rel: 'noopener' }, 'Ver producto') : h('div', { class: 'imeta' }, 'Agrega el enlace en “Editar pedido” para ver la foto')));
+    });
+    if (!items.length) list.append(h('div', { class: 'oitem' }, thumbEl(null), h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, 'Agrega los artículos de este pedido')));
+    const prev = h('button', { class: 'arr', type: 'button', 'aria-label': 'Artículos anteriores', onclick: () => list.scrollBy({ left: -list.clientWidth * 0.8 }) }, '‹');
+    const next = h('button', { class: 'arr', type: 'button', 'aria-label': 'Más artículos', onclick: () => list.scrollBy({ left: list.clientWidth * 0.8 }) }, '›');
+    const syncArr = () => { prev.disabled = list.scrollLeft <= 4; next.disabled = list.scrollLeft + list.clientWidth >= list.scrollWidth - 4; };
+    list.addEventListener('scroll', syncArr, { passive: true });
+    requestAnimationFrame(syncArr); setTimeout(syncArr, 600);
+    const car = h('div', { class: 'ocar' }, prev, list, next);
     const acts = h('div', { class: 'oacts' });
     const tu = trackUrl(e.tracking);
     const nx = NEXT[e.estado || 'En espera'];
-    if (tu) acts.append(h('a', { class: 'pill y', href: tu, target: '_blank', rel: 'noopener' }, 'Rastrear paquete'));
-    if (nx) acts.append(h('button', { class: 'pill' + (tu ? '' : ' y'), type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? 'Marcar como retirado' : 'Pasar a ' + nx));
+    if (tu) acts.append(h('a', { class: 'pill', href: tu, target: '_blank', rel: 'noopener' }, 'Rastrear paquete'));
+    if (nx) acts.append(h('button', { class: 'pill', type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? 'Marcar como retirado' : 'Pasar a ' + nx));
     acts.append(h('button', { class: 'pill', type: 'button', onclick: () => openEditor(e) }, 'Editar pedido'));
     acts.append(h('button', { class: 'pill', type: 'button', disabled: S.ro || !S.db, onclick: () => { const b = { ...strip(e) }; ['tracking', 'recibo', 'embarque', 'f_miami', 'f_retiro', 'factura_gc', 'peso_lb', 'volumen_cuft', 'f_aprox_miami'].forEach((k) => { b[k] = null; }); b.estado = 'En espera'; b.f_compra = todayISO(); openEditor(null, b); toast('Copia lista: revisa y guarda'); } }, 'Volver a pedir'));
-    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, prog, list), acts);
+    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, prog, car), acts);
     const foot = h('div', { class: 'ofoot' },
       h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra)))),
       h('span', null, 'Gold Coast ', h('b', null, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : 'sin facturar')),
@@ -794,7 +809,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     if (!E('estado').value) E('estado').value = 'En espera';
     if (!E('metodo').value) E('metodo').value = 'aereo';
     $('ed-del').hidden = !e; $('ed-dup').hidden = !e; $('ed-del').classList.remove('armed'); $('ed-del').textContent = 'Eliminar';
-    [$('ed-save'), $('ed-del'), $('ed-dup')].forEach((b) => { b.disabled = S.ro || !S.db; });
+    [$('ed-save'), $('ed-save2'), $('ed-del'), $('ed-dup')].forEach((b) => { b.disabled = S.ro || !S.db; });
     updateCalc();
     $('scrim').hidden = false; setTimeout(() => { const f = document.querySelector('#e-items input[type=url]'); if (f && !f.value) f.focus(); }, 30);
   }
@@ -921,6 +936,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !$('scrim').hidden) closeEditor(); });
   $('ed').addEventListener('submit', (ev) => { ev.preventDefault(); save(); });
   $('ed-save').addEventListener('click', save);
+  $('ed-save2').addEventListener('click', save);
   async function save() {
     if (!S.db) return;
     const b = readForm();
