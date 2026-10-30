@@ -850,17 +850,18 @@ h1 { font-size: 30px; }
     try {
       for (const env of (S.env || [])) {
         const items = itemsOf(env);
-        const need = items.filter((it) => it.url && !it.img && !TRIED.has(it.url));
+        const cut = (it) => /…$/.test(it.n || '');
+        const need = items.filter((it) => it.url && (!it.img || cut(it)) && !TRIED.has(it.url));
         if (!need.length) continue;
         let changed = false;
         for (const it of need) {
           TRIED.add(it.url);
           const r = await linkPreview(it.url);
-          if (r && !r.error && r.img) { it.img = r.img; if (!it.n && r.title) it.n = r.title; changed = true; }
+          if (r && !r.error && (r.img || r.title)) { if (r.img && !it.img) it.img = r.img; if (r.title && (!it.n || cut(it))) { it.n = r.title; it.full = true; } changed = true; }
         }
         if (changed) {
           const cur = (S.env || []).find((x) => x.id === env.id); if (!cur) continue;
-          const merged = itemsOf(cur).map((x) => { const f = items.find((y) => y.url && y.url === x.url && y.img); return f ? { ...x, img: f.img, n: x.n || f.n } : x; });
+          const merged = itemsOf(cur).map((x) => { const f = items.find((y) => y.url && y.url === x.url && (y.img || y.full)); return f ? { ...x, img: x.img || f.img, n: f.full && (!x.n || cut(x)) ? f.n : x.n || f.n } : x; });
           await S.db.collection('envios').doc(env.id).set({ ...strip(cur), items: merged, articulos: merged.map((x) => x.n).filter(Boolean).join('\n') || null });
         }
       }
@@ -929,11 +930,11 @@ h1 { font-size: 30px; }
   const BAD_TITLE = /^(product gallery|amazon(\.[a-z.]+)?|robot check|page not found|página no encontrada|access denied|just a moment.*|sorry.*)$/i;
   const asinImg = (asin) => 'https://images-na.ssl-images-amazon.com/images/P/' + asin + '.01.LZZZZZZZ.jpg';
   const probeImg = (src) => new Promise((res) => { const im = new Image(); const to = setTimeout(() => res(false), 8000); im.onload = () => { clearTimeout(to); res(im.naturalWidth > 10 && im.naturalHeight > 10); }; im.onerror = () => { clearTimeout(to); res(false); }; im.src = src; });
+  // Keep the full product name exactly as the store shows it; only drop the "Amazon.com:" wrapper of page titles.
   const cleanTitle = (t) => {
-    t = String(t || '').replace(/^Amazon\.[a-z.]+\s*:\s*/i, '').replace(/\s*:\s*Amazon\.[a-z.]+.*$/i, '').trim();
-    const parts = t.split(/\s*:\s+/);
-    if (parts.length >= 3 || (parts.length === 2 && parts[1].split(/\s+/).length <= 3)) t = parts[0];
-    return t.length > 120 ? t.slice(0, 118) + '…' : t;
+    t = String(t || '').replace(/\s+/g, ' ').trim();
+    if (/^Amazon\.[a-z.]+\s*:\s*/i.test(t)) t = t.replace(/^Amazon\.[a-z.]+\s*:\s*/i, '').replace(/\s+:\s+[^:]+$/, '');
+    return t.replace(/\s*:\s*Amazon\.[a-z.]+.*$/i, '').trim();
   };
   async function linkPreview(link) {
     let url = String(link || '').trim();
@@ -980,7 +981,8 @@ h1 { font-size: 30px; }
       const st = h('div', { class: 'ist' }, it.img ? 'Foto cargada' : '');
       name.addEventListener('input', () => { it.n = name.value; });
       let last = it.url || '';
-      const go = async () => {
+      let typed = false;
+      const go = async (auto) => {
         const v = link.value.trim();
         if (v === last) return; last = v; it.url = v || null;
         if (!v) { it.img = null; const nt = thumbEl(null); th.replaceWith(nt); th = nt; st.textContent = ''; return; }
@@ -994,12 +996,12 @@ h1 { font-size: 30px; }
         it.url = r.url || v;
         if (r.img && r.img !== it.img) { it.img = r.img; const nt = thumbEl(r.img); th.replaceWith(nt); th = nt; }
         th.classList.remove('loading');
-        if (r.title && !name.value.trim()) { name.value = r.title; it.n = r.title; }
+        if (r.title && (auto !== true || !name.value.trim())) { name.value = r.title; it.n = r.title; }
         st.textContent = r.img ? 'Listo' : 'Encontré el nombre, pero no la foto';
         if (!r.img) st.className = 'ist err';
       };
       link.addEventListener('change', go);
-      if (it.url && !it.img) { last = ''; setTimeout(go, 100); }
+      if (it.url && !it.img) { last = ''; setTimeout(() => go(true), 100); }
       link.addEventListener('paste', () => setTimeout(go, 50));
       link.addEventListener('blur', go);
       const rm = h('button', { class: 'x', type: 'button', 'aria-label': 'Quitar artículo', onclick: () => { ED_ITEMS.splice(i, 1); if (!ED_ITEMS.length) ED_ITEMS.push({ n: '', img: null, url: null }); renderEdItems(); } }, '×');
