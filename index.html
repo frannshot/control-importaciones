@@ -477,6 +477,8 @@ details.auto > .fields { padding: 0 14px 14px; }
 .dsheet .body { display: flex; flex-direction: column; }
 .dimg { background: #fff; border-radius: 14px; box-shadow: var(--sh-1); padding: 8px; min-height: 160px; display: grid; place-items: center; }
 .dimg img { width: 100%; height: auto; display: block; border-radius: 8px; }
+.ofoot .gcest { color: var(--muted); }
+.ofoot .gcest b { color: #8a6a12; background: #fff6d6; border-radius: 6px; padding: 1px 6px; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -918,7 +920,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, car), acts);
     const foot = h('div', { class: 'ofoot' },
       h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra)))),
-      h('span', null, 'Gold Coast ', h('b', null, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : 'sin facturar')),
+      n(e.factura_gc) != null ? h('span', null, 'Gold Coast ', h('b', null, usd(n(e.factura_gc)))) : (() => { const g = gcEstimate(e); return g ? h('span', { class: 'gcest', title: g.why }, 'Gold Coast aprox. ', h('b', null, '≈ ' + usd(g.usd))) : h('span', null, 'Gold Coast ', h('b', null, 'sin facturar')); })(),
       n(e.peso_lb) != null ? h('span', null, 'Peso ', h('b', null, n(e.peso_lb).toFixed(2) + ' lb')) : null,
       e.tracking ? h('span', null, 'Tracking ', h('b', { class: 'mono' }, e.tracking)) : null);
     const stc = (ESTADOS.find((x) => x.k === (e.estado || 'En espera')) || ESTADOS[0]).c;
@@ -951,17 +953,18 @@ details.auto > .fields { padding: 0 14px 14px; }
       for (const env of (S.env || [])) {
         const items = itemsOf(env);
         const cut = (it) => /…$/.test(it.n || '');
-        const need = items.filter((it) => it.url && (!it.img || cut(it)) && !TRIED.has(it.url));
+        const wantW = (it) => n(env.factura_gc) == null && n(env.peso_lb) == null && !('w' in it) && /amazon\.|a\.co\/|amzn\./i.test(it.url || '');
+        const need = items.filter((it) => it.url && (!it.img || cut(it) || wantW(it)) && !TRIED.has(it.url));
         if (!need.length) continue;
         let changed = false;
         for (const it of need) {
           TRIED.add(it.url);
           const r = await linkPreview(it.url);
-          if (r && !r.error && (r.img || r.title)) { if (r.img && !it.img) it.img = r.img; if (r.title && (!it.n || cut(it))) { it.n = r.title; it.full = true; } changed = true; }
+          if (r && !r.error && (r.img || r.title)) { if (r.img && !it.img) it.img = r.img; if (r.title && (!it.n || cut(it))) { it.n = r.title; it.full = true; } if (wantW(it)) { it.w = r.w; it.gotW = true; } changed = true; }
         }
         if (changed) {
           const cur = (S.env || []).find((x) => x.id === env.id); if (!cur) continue;
-          const merged = itemsOf(cur).map((x) => { const f = items.find((y) => y.url && y.url === x.url && (y.img || y.full)); return f ? { ...x, img: x.img || f.img, n: f.full && (!x.n || cut(x)) ? f.n : x.n || f.n } : x; });
+          const merged = itemsOf(cur).map((x) => { const f = items.find((y) => y.url && y.url === x.url && (y.img || y.full || y.gotW)); if (!f) return x; const o = { ...x, img: x.img || f.img, n: f.full && (!x.n || cut(x)) ? f.n : x.n || f.n }; if (f.gotW && !('w' in x)) o.w = f.w ?? null; return o; });
           await S.db.collection('envios').doc(env.id).set({ ...strip(cur), items: merged, articulos: merged.map((x) => x.n).filter(Boolean).join('\n') || null });
         }
       }
@@ -1045,7 +1048,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     try { new URL(url); } catch (e) { return { error: 'Ese enlace no es válido' }; }
     const withTimeout = async (u, ms) => { const ac = new AbortController(); const to = setTimeout(() => ac.abort(), ms); try { const r = await fetch(u, { signal: ac.signal }); return r; } finally { clearTimeout(to); } };
-    let finalUrl = url, img = null, title = null, asin = amazonAsin(url), got = false;
+    let finalUrl = url, img = null, title = null, asin = amazonAsin(url), got = false, w = null;
     // 1) Our own preview service (Netlify function, same site).
     try {
       const r = await withTimeout('/.netlify/functions/preview?url=' + encodeURIComponent(url), 25000);
@@ -1054,6 +1057,7 @@ details.auto > .fields { padding: 0 14px 14px; }
         if (j.url) finalUrl = j.url;
         asin = asin || j.asin || amazonAsin(finalUrl);
         title = j.title ? cleanTitle(j.title) : null;
+        if (n(j.weight_lb) != null) w = n(j.weight_lb);
         if (j.image && await probeImg(j.image)) img = j.image;
       }
     } catch (e) { /* not available here */ }
@@ -1071,7 +1075,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (!img && asin && await probeImg(asinImg(asin))) img = asinImg(asin);
     if (!title || BAD_TITLE.test(title)) title = slugName(finalUrl) || slugName(url) || null;
     if (!img && !title) return { error: 'No pude leer ese enlace. Prueba de nuevo en un momento.' };
-    return { img, title, url: finalUrl };
+    return { img, title, url: finalUrl, w };
   }
 
   let ED_ITEMS = [];
@@ -1100,6 +1104,7 @@ details.auto > .fields { padding: 0 14px 14px; }
         if (r.img && r.img !== it.img) { it.img = r.img; const nt = thumbEl(r.img); th.replaceWith(nt); th = nt; }
         th.classList.remove('loading');
         if (r.title && (auto !== true || !name.value.trim())) { name.value = r.title; it.n = r.title; }
+        it.w = r.w;
         st.textContent = r.img ? 'Listo' : 'Encontré el nombre, pero no la foto';
         if (!r.img) st.className = 'ist err';
       };
@@ -1319,6 +1324,26 @@ details.auto > .fields { padding: 0 14px 14px; }
   renderAll();
 
 
+
+  /* ---------- Gold Coast estimate (before the invoice arrives) ---------- */
+  // Uses the weight on the Gold Coast receipt when there is one; otherwise the Amazon weight of each item
+  // (or a typical weight) plus the box. Price = weight × rate, never below the minimum.
+  const BOOK = /\b(libro|libros|book|novel|novela|edition|edición|tapa (blanda|dura)|paperback|hardcover)\b/i;
+  function gcEstimate(e) {
+    if (n(e.factura_gc) != null) return null;
+    const sea = e.metodo === 'maritimo';
+    const rate = n(sea ? S.cfg.sea_rate : S.cfg.air_rate), min = n(sea ? S.cfg.sea_min : S.cfg.air_min) || 0;
+    if (!rate) return null;
+    let lb, why;
+    if (n(e.peso_lb) != null) { lb = n(e.peso_lb); why = 'Con el peso del recibo de Gold Coast: ' + lb.toFixed(2) + ' lb'; }
+    else {
+      const items = itemsOf(e); if (!items.length) return null;
+      let known = 0;
+      lb = items.reduce((s, it) => { const w = n(it.w); if (w != null) { known++; return s + w; } return s + (BOOK.test(it.n || '') ? 1.4 : 1.5); }, 0) + 0.4;
+      why = 'Estimado: ' + lb.toFixed(1) + ' lb (' + (known === items.length ? 'peso de Amazon' : known ? 'peso de Amazon y peso típico' : 'peso típico por artículo') + ' + caja)';
+    }
+    return { usd: Math.round(Math.max(min, lb * rate) * 100) / 100, lb, why };
+  }
   /* ---------- Order detail as an image (PNG) ---------- */
   const cssVar = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#888';
   const loadImg = (src) => new Promise((res) => { if (!src) return res(null); const im = new Image(); im.crossOrigin = 'anonymous'; const to = setTimeout(() => res(null), 9000); im.onload = () => { clearTimeout(to); res(im); }; im.onerror = () => { clearTimeout(to); res(null); }; im.src = src; });
@@ -1389,12 +1414,12 @@ details.auto > .fields { padding: 0 14px 14px; }
     });
     y += 96;
     // costs
-    const buy = n(e.total_compra), gc = n(e.factura_gc);
+    const buy = n(e.total_compra), gcEst = n(e.factura_gc) == null ? gcEstimate(e) : null, gc = n(e.factura_gc) ?? (gcEst ? gcEst.usd : null);
     c.fillStyle = '#fff'; c.beginPath(); c.roundRect(P, y, W - P * 2, 100, 12); c.fill();
     const row = (k, v, yy, big) => { c.fillStyle = big ? '#1f2933' : '#6b7380'; c.font = F(big ? 700 : 400, big ? 16 : 14); c.fillText(k, P + 16, yy); c.textAlign = 'right'; c.fillStyle = '#1f2933'; c.font = F(700, big ? 18 : 14); c.fillText(v, W - P - 16, yy); c.textAlign = 'left'; };
-    row('Compra en la tienda', usd(buy), y + 28); row('Flete Gold Coast', gc != null ? usd(gc) : 'sin facturar', y + 52);
+    row('Compra en la tienda', usd(buy), y + 28); row(gcEst ? 'Flete Gold Coast (aprox. ' + gcEst.lb.toFixed(1) + ' lb)' : 'Flete Gold Coast', gc != null ? (gcEst ? '≈ ' : '') + usd(gc) : 'sin facturar', y + 52);
     c.strokeStyle = '#efeae1'; c.lineWidth = 1; c.beginPath(); c.moveTo(P + 16, y + 66); c.lineTo(W - P - 16, y + 66); c.stroke();
-    row('Costo total', buy != null ? usd(buy + (gc || 0)) : '—', y + 88, true);
+    row(gcEst ? 'Costo total aprox.' : 'Costo total', buy != null ? (gcEst ? '≈ ' : '') + usd(buy + (gc || 0)) : '—', y + 88, true);
     y += 120;
     if (notes.length) { c.fillStyle = '#1f2933'; c.font = F(700, 15); c.fillText('Notas', P, y + 6); c.fillStyle = '#4b5563'; c.font = F(400, 13.5); notes.forEach((ln, j) => c.fillText(ln, P, y + 30 + j * 19)); y += 40 + notes.length * 19; }
     c.fillStyle = '#9aa1ab'; c.font = F(400, 11); c.fillText('Generado el ' + fmtFull(todayISO()) + ' · Control de importaciones', P, y + 8);

@@ -47,6 +47,16 @@ const firstMatch = (html, regexes) => {
   return null;
 };
 
+// Product weight in pounds from the "Item Weight" / "Package Dimensions" lines of an Amazon page.
+export function weightLb(html) {
+  const text = decode(String(html).replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&(?:rlm|lrm|nbsp|#8206|#8207|#160);/gi, ' ')).replace(/[‎‏ ]/g, ' ').replace(/\s+/g, ' ');
+  const conv = (v, u) => { v = parseFloat(String(v).replace(',', '.')); if (!isFinite(v) || v <= 0) return null; u = u.toLowerCase(); if (u.startsWith('ou') || u === 'oz') return v / 16; if (u.startsWith('k')) return v * 2.20462; if (u.startsWith('g')) return v / 453.592; return v; };
+  const U = '(pounds?|lbs?|ounces?|oz|kilograms?|kg|grams?|g)\\b';
+  const pats = [new RegExp('(?:Item|Product|Shipping|Package) Weight\\s*:?\\s*([\\d.,]+)\\s*' + U, 'i'), new RegExp('Peso del (?:producto|art[ií]culo|paquete)\\s*:?\\s*([\\d.,]+)\\s*' + U, 'i'), new RegExp('Package Dimensions\\s*:?\\s*[\\d.]+\\s*x\\s*[\\d.]+\\s*x\\s*[\\d.]+\\s*\\w+\\s*;\\s*([\\d.,]+)\\s*' + U, 'i'), new RegExp('Dimensions\\s*:?\\s*[\\d.]+\\s*x\\s*[\\d.]+\\s*x\\s*[\\d.]+\\s*\\w+\\s*;\\s*([\\d.,]+)\\s*' + U, 'i')];
+  for (const re of pats) { const m = text.match(re); if (m) { const w = conv(m[1], m[2]); if (w && w < 200) return Math.round(w * 100) / 100; } }
+  return null;
+}
+
 export function extractAmazon(html) {
   let image = firstMatch(html, [
     /"hiRes":"(https:\/\/[^"]+?\.(?:jpg|jpeg|png|webp))"/i,
@@ -69,7 +79,7 @@ export function extractAmazon(html) {
     const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     if (t) title = decode(t[1]).replace(/^Amazon\.[a-z.]+\s*:\s*/i, '').replace(/\s*:\s*Amazon\.[a-z.]+.*$/i, '');
   }
-  return { image: image ? decode(image) : null, title: title || null };
+  return { image: image ? decode(image) : null, title: title || null, weight_lb: weightLb(html) };
 }
 
 export function extractGeneric(html, base) {
@@ -143,7 +153,7 @@ export default async (req) => {
       if (asin || /(^|\.)amazon\./i.test(new URL(r.finalUrl).hostname)) {
         if (looksBlocked(r.html)) continue;
         const a = extractAmazon(r.html);
-        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image });
+        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image, weight_lb: a.weight_lb });
         continue;
       }
       const g = extractGeneric(r.html, r.finalUrl);
