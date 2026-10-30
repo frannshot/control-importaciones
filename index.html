@@ -201,8 +201,8 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 .items-ed { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; }
 .ied { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
 .ied .ins { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.ied .st { font-size: 12px; color: var(--muted); min-height: 1em; }
-.ied .st.err { color: var(--warn); }
+.ied .ist { font-size: 12.5px; color: var(--muted); min-height: 1em; }
+.ied .ist.err { color: var(--warn); }
 .ied .thumb.loading { animation: pulse 1s ease-in-out infinite alternate; }
 @keyframes pulse { from { opacity: .45; } to { opacity: 1; } }
 .ied .thumb { width: 60px; height: 60px; position: relative; }
@@ -843,23 +843,26 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
       let th = thumbEl(it.img);
       const link = h('input', { type: 'url', inputmode: 'url', autocomplete: 'off', placeholder: 'Pega el enlace del producto', 'aria-label': 'Enlace del artículo ' + (i + 1) }); link.value = it.url || '';
       const name = h('input', { type: 'text', placeholder: 'Nombre del artículo (se llena solo)', 'aria-label': 'Nombre del artículo ' + (i + 1) }); name.value = it.n || '';
-      const st = h('div', { class: 'st' }, it.img ? 'Foto cargada' : '');
+      const st = h('div', { class: 'ist' }, it.img ? 'Foto cargada' : '');
       name.addEventListener('input', () => { it.n = name.value; });
       let last = it.url || '';
       const go = async () => {
         const v = link.value.trim();
         if (v === last) return; last = v; it.url = v || null;
         if (!v) { it.img = null; const nt = thumbEl(null); th.replaceWith(nt); th = nt; st.textContent = ''; return; }
-        st.className = 'st'; st.textContent = 'Buscando el producto…'; th.classList.add('loading');
+        st.className = 'ist'; st.textContent = 'Buscando el producto…'; th.classList.add('loading');
+        const early = amazonAsin(/^https?:/i.test(v) ? v : 'https://' + v);
+        if (early) probeImg(asinImg(early)).then((ok) => { if (ok && link.value.trim() === v && !it.img) { it.img = asinImg(early); const nt = thumbEl(it.img); nt.classList.add('loading'); th.replaceWith(nt); th = nt; st.textContent = 'Foto lista, buscando el nombre…'; } });
         const r = await linkPreview(v);
         if (link.value.trim() !== v) return;
         th.classList.remove('loading');
-        if (!r || r.error) { st.className = 'st err'; st.textContent = (r && r.error) || 'No pude leer ese enlace'; return; }
+        if (!r || r.error) { th.classList.remove('loading'); if (it.img) { st.className = 'ist'; st.textContent = 'Foto lista. Escribe el nombre.'; return; } st.className = 'ist err'; st.textContent = (r && r.error) || 'No pude leer ese enlace'; return; }
         it.url = r.url || v;
-        if (r.img) { it.img = r.img; const nt = thumbEl(r.img); th.replaceWith(nt); th = nt; }
+        if (r.img && r.img !== it.img) { it.img = r.img; const nt = thumbEl(r.img); th.replaceWith(nt); th = nt; }
+        th.classList.remove('loading');
         if (r.title && !name.value.trim()) { name.value = r.title; it.n = r.title; }
         st.textContent = r.img ? 'Listo' : 'Encontré el nombre, pero no la foto';
-        if (!r.img) st.className = 'st err';
+        if (!r.img) st.className = 'ist err';
       };
       link.addEventListener('change', go);
       link.addEventListener('paste', () => setTimeout(go, 50));
