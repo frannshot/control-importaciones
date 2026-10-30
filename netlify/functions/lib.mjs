@@ -25,6 +25,9 @@ const normT = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 const trackMatch = (a, b) => { a = normT(a); b = normT(b); if (a.length < 10 || b.length < 10) return false; return a === b || a.endsWith(b) || b.endsWith(a); };
 const cleanTrack = (s) => { s = normT(s); const m = s.match(/^420\d{5}(9[2-5]\d{18,24})$/); return m ? m[1] : s; };
 const niceName = (s) => { s = String(s || '').replace(/ITEM FROM:\s*[A-Z0-9 .&'-]+?(?=\s+\d|\s*$)/i, '').replace(/\b[A-Z0-9]{12,}\b/g, '').replace(/[-\s]+$/, '').trim(); if (!s) return null; s = s.toLowerCase().replace(/\bbooks\b/g, 'libros').replace(/\bbook\b/g, 'libro'); return s.charAt(0).toUpperCase() + s.slice(1); };
+const MON = { JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12 };
+const embarqueDate = (s) => { const m = /^([A-Z]{3})_(\d{1,2})_(\d{4})/.exec(String(s || '').toUpperCase()); return m && MON[m[1]] ? m[3] + '-' + String(MON[m[1]]).padStart(2, '0') + '-' + m[2].padStart(2, '0') : null; };
+const todayCaracas = () => new Date(Date.now() - 4 * 3600e3).toISOString().slice(0, 10);
 const titleCase = (s) => String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 function findEnv(d, envios) {
   const list = Object.entries(envios);
@@ -53,6 +56,7 @@ export function applyDocs(data, docs) {
     } else {
       if (d.total != null) { b.factura_gc = d.total; b.estado_flete = 'Confirmado'; }
       if (d.embarque) b.embarque = d.embarque;
+      if ((b.estado === 'En Miami' || b.estado === 'En espera') && embarqueDate(b.embarque) && embarqueDate(b.embarque) <= todayCaracas()) b.estado = 'En tránsito';
       if (d.cobrado != null && d.cobrado_unidad === 'LB') b.peso_lb = d.cobrado;
       if (!b.tracking && d.trackings && d.trackings[0]) b.tracking = cleanTrack(d.trackings[0]);
       if (isNew) { const nm = niceName(d.notas) || 'Paquete facturado por Gold Coast'; b.items = [{ n: nm, img: null, url: null }]; b.articulos = nm; b.notas = 'Creado automáticamente con la factura ' + d.factura + ' de Gold Coast. Completa la fecha de compra, el monto y los enlaces.'; }

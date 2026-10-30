@@ -1297,6 +1297,7 @@ h1 { font-size: 30px; }
           if (meta.rev != null && changed.includes('envios') && !manual) toast('Pedidos actualizados');
         }
         wr(RKEY, { rev: j.rev, at: new Date().toISOString() });
+        autoTransit();
         if (manual) toast('Todo al día');
         st('Sincronizado ' + new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) + ' · ' + Object.keys(STORE.dump().envios).length + ' pedidos en la nube');
       } catch (e) {
@@ -1327,6 +1328,16 @@ h1 { font-size: 30px; }
   STORE.on('cotizaciones', () => { S.quotes = STORE.list('cotizaciones'); renderQuotes(); });
   STORE.on('config', () => { S.cfg = { ...DEF_CFG, ...(STORE.get('config', 'tarifas') || {}) }; renderCfg(); renderManifest(); renderAlerts(); renderLedger(); calc(); });
 
+  // A package with a shipment date that has arrived is on its way to Caracas.
+  function autoTransit() {
+    const t0 = todayISO(); let k = 0;
+    for (const e of STORE.list('envios')) {
+      if (e.estado !== 'En Miami' && e.estado !== 'En espera') continue;
+      const d = embarqueDate(e.embarque); if (!d || d > t0) continue;
+      S.db.collection('envios').doc(e.id).set({ ...strip(e), estado: 'En tránsito', actualizado: new Date().toISOString() }); k++;
+    }
+    if (k) toast(k === 1 ? '1 pedido pasó a En tránsito' : k + ' pedidos pasaron a En tránsito');
+  }
   $('sync-save').addEventListener('click', async () => {
     const k = $('sync-key').value.trim(); if (!k) { toast('Pega la clave primero'); return; }
     const cfg = STORE.get('config', 'sync') || {};
@@ -1337,6 +1348,7 @@ h1 { font-size: 30px; }
   pull(); renderAll();
   if ((STORE.get('config', 'sync') || {}).key) { $('sync-key').placeholder = 'Clave guardada'; setTimeout(() => SYNC.run(false), 300); }
   else $('sync-status').textContent = 'Sin configurar: tus datos están solo en este dispositivo';
+  if (!(STORE.get('config', 'sync') || {}).key) autoTransit();
   SYNC.mini();
   setInterval(() => { if (document.visibilityState === 'visible') SYNC.run(false); else SYNC.mini(); }, 45000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SYNC.run(false); });
