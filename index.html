@@ -464,6 +464,19 @@ body { background: radial-gradient(1200px 420px at 15% -80px, #fff1d6 0%, transp
 .order .ostatus.go, .order .ostatus { color: color-mix(in srgb, var(--sc, var(--ink)) 78%, #1f2933); }
 .order .ostatus.warn { color: var(--warn); }
 @media (prefers-reduced-motion: reduce) { .order, .pill { transition: none; } }
+
+/* Simplified editor + detail image */
+details.auto { background: #fff; border-radius: 12px; box-shadow: var(--sh-1); padding: 0; }
+details.auto summary { cursor: pointer; list-style: none; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+details.auto summary::-webkit-details-marker { display: none; }
+details.auto summary b { font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink); }
+details.auto summary b::after { content: " ▾"; color: var(--muted); }
+details.auto[open] summary b::after { content: " ▴"; }
+details.auto summary span { font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--muted); font-weight: 400; }
+details.auto > .fields { padding: 0 14px 14px; }
+.dsheet .body { display: flex; flex-direction: column; }
+.dimg { background: #fff; border-radius: 14px; box-shadow: var(--sh-1); padding: 8px; min-height: 160px; display: grid; place-items: center; }
+.dimg img { width: 100%; height: auto; display: block; border-radius: 8px; }
 </style>
 </head>
 <body>
@@ -644,27 +657,39 @@ body { background: radial-gradient(1200px 420px at 15% -80px, #fff1d6 0%, transp
         <div class="f wide"><button class="btn small" id="e-additem" type="button" style="justify-self:start;width:max-content">+ Agregar artículo</button></div>
         <label class="f"><span>Total de la compra (USD)</span><input id="e-total_compra" type="number" min="0" step="0.01" inputmode="decimal"></label>
 
-        <div class="group"><span>Envío a Miami</span></div>
         <label class="f"><span>Método de envío</span><select id="e-metodo"><option value="aereo">Aéreo</option><option value="maritimo">Marítimo</option></select></label>
-        <label class="f wide"><span>Tracking</span><input id="e-tracking" type="text" class="mono" autocomplete="off"></label>
-        <label class="f"><span>Entrega aproximada en Miami</span><input id="e-f_aprox_miami" type="date"></label>
-        <label class="f"><span>Fecha de entrega en Miami</span><input id="e-f_miami" type="date"></label>
-
-        <div class="group"><span>Gold Coast</span></div>
-        <label class="f"><span>Recibo / factura</span><input id="e-recibo" type="text" inputmode="numeric" placeholder="941824"></label>
-        <label class="f"><span>Número de embarque</span><input id="e-embarque" type="text" class="mono" placeholder="OCT_30_2026_A_I"></label>
-        <label class="f"><span>Peso cobrado (lb)</span><input id="e-peso_lb" type="number" min="0" step="0.01" inputmode="decimal"></label>
-        <label class="f"><span>Volumen (ft³)</span><input id="e-volumen_cuft" type="number" min="0" step="0.01" inputmode="decimal"></label>
-        <label class="f"><span>Total factura Gold Coast (USD)</span><input id="e-factura_gc" type="number" min="0" step="0.01" inputmode="decimal"></label>
-        <label class="f"><span>Fecha de retiro en Las Mercedes</span><input id="e-f_retiro" type="date"></label>
-        <div class="calcline" id="e-calc"></div>
         <label class="f wide"><span>Notas</span><textarea id="e-notas"></textarea></label>
+        <details class="auto f wide" id="e-auto">
+          <summary><b>Envío y Gold Coast</b><span id="e-auto-sum">Se llenan solos con los correos de Gold Coast</span></summary>
+          <div class="fields">
+            <label class="f wide"><span>Tracking</span><input id="e-tracking" type="text" class="mono" autocomplete="off"></label>
+            <label class="f"><span>Entrega aproximada en Miami</span><input id="e-f_aprox_miami" type="date"></label>
+            <label class="f"><span>Fecha de entrega en Miami</span><input id="e-f_miami" type="date"></label>
+            <label class="f"><span>Recibo / factura</span><input id="e-recibo" type="text" inputmode="numeric" placeholder="941824"></label>
+            <label class="f"><span>Número de embarque</span><input id="e-embarque" type="text" class="mono" placeholder="OCT_30_2026_A_I"></label>
+            <label class="f"><span>Peso cobrado (lb)</span><input id="e-peso_lb" type="number" min="0" step="0.01" inputmode="decimal"></label>
+            <label class="f"><span>Volumen (ft³)</span><input id="e-volumen_cuft" type="number" min="0" step="0.01" inputmode="decimal"></label>
+            <label class="f"><span>Total factura Gold Coast (USD)</span><input id="e-factura_gc" type="number" min="0" step="0.01" inputmode="decimal"></label>
+            <label class="f"><span>Fecha de retiro en Las Mercedes</span><input id="e-f_retiro" type="date"></label>
+          </div>
+        </details>
+        <div class="calcline" id="e-calc"></div>
       </div>
     </form>
     <footer>
       <div class="row"><button class="btn primary" id="ed-save2" type="button">Guardar</button><button class="btn ghost" id="ed-cancel" type="button">Cancelar</button></div>
       <div class="row"><button class="btn ghost" id="ed-dup" type="button">Duplicar</button><button class="btn danger" id="ed-del" type="button">Eliminar</button></div>
     </footer>
+  </div>
+</div>
+
+<div class="scrim" id="dscrim" hidden>
+  <div class="sheet dsheet" role="dialog" aria-modal="true" aria-labelledby="d-title">
+    <header><h2 id="d-title">Detalles del pedido</h2><button class="x" id="d-x" type="button" aria-label="Cerrar">×</button></header>
+    <div class="body">
+      <div class="dimg" id="d-img"><p class="hint">Preparando la imagen…</p></div>
+      <div class="row" style="margin-top:14px"><button class="btn primary" id="d-share" type="button">Compartir o guardar</button><button class="btn" id="d-dl" type="button">Descargar imagen</button><button class="btn ghost" id="d-edit" type="button">Editar pedido</button></div>
+    </div>
   </div>
 </div>
 
@@ -865,7 +890,7 @@ body { background: radial-gradient(1200px 420px at 15% -80px, #fff1d6 0%, transp
       h('div', null, h('span', { class: 'k' }, 'Pedido realizado'), h('span', { class: 'v' }, e.f_compra ? fmtFull(e.f_compra) : '—')),
       h('div', null, h('span', { class: 'k' }, 'Total'), h('span', { class: 'v' }, tot == null ? '—' : 'US' + usd(tot))),
       h('div', null, h('span', { class: 'k' }, 'Enviar a'), h('span', { class: 'v', style: 'color:var(--link)' }, '118672 ' + (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo') + (e.tienda ? ' · ' + e.tienda : ''))),
-      h('div', { class: 'right' }, h('span', { class: 'k' }, e.pedido ? 'Pedido N.º ' + e.pedido : e.recibo ? 'Recibo N.º ' + e.recibo : 'Sin número de pedido'), h('button', { class: 'link', type: 'button', onclick: () => openEditor(e) }, 'Ver detalles del pedido')));
+      h('div', { class: 'right' }, h('span', { class: 'k' }, e.pedido ? 'Pedido N.º ' + e.pedido : e.recibo ? 'Recibo N.º ' + e.recibo : 'Sin número de pedido'), h('button', { class: 'link', type: 'button', onclick: () => openDetail(e) }, 'Ver detalles del pedido')));
     const prog = h('div', { class: 'prog', 'aria-label': 'Progreso: ' + (e.estado || 'En espera') });
     ['Comprado', 'En Miami', 'En tránsito', 'Retirado'].forEach((l, i) => prog.append(h('div', { class: 's' + (i < idx ? ' done' : i === idx ? ' done now' : '') }, l)));
     const list = h('div', { class: 'oitems' + (items.length <= 1 ? ' rows' : '') });
@@ -964,6 +989,9 @@ body { background: radial-gradient(1200px 420px at 15% -80px, #fff1d6 0%, transp
     $('ed-del').hidden = !e; $('ed-dup').hidden = !e; $('ed-del').classList.remove('armed'); $('ed-del').textContent = 'Eliminar';
     [$('ed-save'), $('ed-save2'), $('ed-del'), $('ed-dup')].forEach((b) => { b.disabled = S.ro || !S.db; });
     updateCalc();
+    const bits = [src.recibo && 'Recibo ' + src.recibo, src.embarque && 'Embarque ' + src.embarque, n(src.factura_gc) != null && 'Gold Coast ' + usd(n(src.factura_gc)), n(src.peso_lb) != null && src.peso_lb + ' lb'].filter(Boolean);
+    $('e-auto-sum').textContent = bits.length ? bits.join(' · ') : 'Se llenan solos con los correos de Gold Coast';
+    $('e-auto').open = false;
     $('scrim').hidden = false; setTimeout(() => { const f = document.querySelector('#e-items input[type=url]'); if (f && !f.value) f.focus(); }, 30);
   }
   function closeEditor() { $('scrim').hidden = true; S.editing = null; }
@@ -1289,6 +1317,110 @@ body { background: radial-gradient(1200px 420px at 15% -80px, #fff1d6 0%, transp
 
   function renderAll() { renderManifest(); renderAlerts(); renderChips(); renderLedger(); renderResumen(); renderTasks(); renderQuotes(); renderCfg(); calc(); $('new').disabled = S.ro || !S.db; $('nt-add').disabled = S.ro || !S.db; }
   renderAll();
+
+
+  /* ---------- Order detail as an image (PNG) ---------- */
+  const cssVar = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#888';
+  const loadImg = (src) => new Promise((res) => { if (!src) return res(null); const im = new Image(); im.crossOrigin = 'anonymous'; const to = setTimeout(() => res(null), 9000); im.onload = () => { clearTimeout(to); res(im); }; im.onerror = () => { clearTimeout(to); res(null); }; im.src = src; });
+  async function photo(src) {
+    if (!src) return null;
+    const direct = await loadImg(src);
+    if (direct) { try { const c = document.createElement('canvas'); c.width = c.height = 1; const x = c.getContext('2d'); x.drawImage(direct, 0, 0, 1, 1); x.getImageData(0, 0, 1, 1); return direct; } catch (e) { /* not shareable, use the proxy */ } }
+    return loadImg('/.netlify/functions/img?u=' + encodeURIComponent(src));
+  }
+  function wrap(ctx, text, maxW, maxLines) {
+    const words = String(text || '').split(/\s+/); const lines = []; let cur = '';
+    for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width <= maxW) cur = t2; else { if (cur) lines.push(cur); cur = w; } if (lines.length === maxLines) break; }
+    if (lines.length < maxLines && cur) lines.push(cur);
+    if (lines.length === maxLines && words.join(' ') !== lines.join(' ')) { let l = lines[maxLines - 1]; while (l && ctx.measureText(l + '…').width > maxW) l = l.slice(0, -1); lines[maxLines - 1] = l + '…'; }
+    return lines;
+  }
+  async function orderImage(e) {
+    const W = 600, S2 = 2, P = 28, F = (w, s) => w + ' ' + s + 'px -apple-system, "Segoe UI", Arial, sans-serif';
+    const items = itemsOf(e); const st = statusOf(e);
+    const sc = cssVar({ 'En espera': '--st-wait', 'En Miami': '--st-mia', 'En tránsito': '--st-tr', 'Terminado': '--st-done' }[e.estado || 'En espera']);
+    const pics = await Promise.all(items.map((it) => photo(it.img)));
+    const meas = document.createElement('canvas').getContext('2d');
+    meas.font = F(600, 15); const itemLines = items.map((it) => wrap(meas, it.n || 'Artículo', W - P * 2 - 92, 3));
+    meas.font = F(400, 13.5); const autoNote = /^Creado automáticamente/.test(e.notas || ''); const notes = e.notas && !autoNote ? wrap(meas, e.notas, W - P * 2, 5) : [];
+    const info = [
+      ['Fecha de compra', e.f_compra ? fmtFull(e.f_compra) : '—'], ['N.º de pedido', e.pedido || '—'], ['Tienda', e.tienda || '—'],
+      ['Recibo Gold Coast', e.recibo || '—'], ['Embarque', e.embarque || '—'], ['Envío', (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo')],
+      ['Peso cobrado', n(e.peso_lb) != null ? e.peso_lb + ' lb' : '—'], ['Volumen', n(e.volumen_cuft) != null ? e.volumen_cuft + ' ft³' : '—'], ['Tracking', e.tracking || '—'],
+    ];
+    const est = retiroEst(e);
+    const steps = [['Compra', e.f_compra], ['Llegó a Miami', e.f_miami], ['Embarque', embarqueDate(e.embarque)], [e.f_retiro ? 'Retirado' : 'Retiro aprox.', e.f_retiro || est]];
+    const itemsH = items.reduce((s, it, i) => s + Math.max(80, itemLines[i].length * 20 + 12) + 10, 0);
+    const H = 150 + 20 + Math.ceil(info.length / 3) * 54 + 30 + 34 + itemsH + 30 + 90 + 30 + 120 + (notes.length ? 40 + notes.length * 19 : 0) + 56;
+    const cv = document.createElement('canvas'); cv.width = W * S2; cv.height = H * S2; const c = cv.getContext('2d'); c.scale(S2, S2);
+    c.fillStyle = '#f7f4ee'; c.fillRect(0, 0, W, H);
+    // header
+    const g = c.createLinearGradient(0, 0, W, 150); g.addColorStop(0, '#12343b'); g.addColorStop(1, '#2a7a73'); c.fillStyle = g; c.fillRect(0, 0, W, 150);
+    c.fillStyle = '#bfe3df'; c.font = F(700, 11); c.fillText('CASILLERO 118672 · GOLD COAST CUSTOMS EXPRESS', P, 34);
+    c.fillStyle = '#fff'; c.font = F(700, 24); c.fillText('Pedido ' + (e.tienda || '') + (e.pedido ? ' · ' + e.pedido : ''), P, 66, W - P * 2);
+    c.fillStyle = sc; c.beginPath(); c.arc(P + 7, 98, 7, 0, 7); c.fill();
+    c.fillStyle = '#fff'; c.font = F(700, 18); c.fillText(st.t, P + 22, 104, W - P * 2 - 22);
+    c.fillStyle = '#cfe7e4'; c.font = F(400, 13.5); c.fillText(st.s || '', P + 22, 126, W - P * 2 - 22);
+    let y = 170;
+    // info grid
+    const cw = (W - P * 2) / 3;
+    info.forEach(([k, v], i) => { const x = P + (i % 3) * cw, yy = y + Math.floor(i / 3) * 54; c.fillStyle = '#6b7380'; c.font = F(600, 10.5); c.fillText(k.toUpperCase(), x, yy); c.fillStyle = '#1f2933'; c.font = F(600, k === 'Tracking' || k === 'Embarque' ? 11.5 : 14); c.fillText(String(v), x, yy + 20, cw - 10); });
+    y += Math.ceil(info.length / 3) * 54 + 10;
+    // items
+    c.fillStyle = '#1f2933'; c.font = F(700, 15); c.fillText(items.length === 1 ? '1 artículo' : items.length + ' artículos', P, y + 14); y += 34;
+    items.forEach((it, i) => {
+      const hgt = Math.max(80, itemLines[i].length * 20 + 12);
+      c.fillStyle = '#fff'; c.beginPath(); c.roundRect(P, y, W - P * 2, hgt, 12); c.fill();
+      const im = pics[i];
+      if (im) { const r = Math.min(64 / im.width, 64 / im.height); const w = im.width * r, hh = im.height * r; c.drawImage(im, P + 12 + (64 - w) / 2, y + (hgt - hh) / 2, w, hh); }
+      else { c.fillStyle = '#f6f3ed'; c.beginPath(); c.roundRect(P + 12, y + (hgt - 64) / 2, 64, 64, 8); c.fill(); }
+      const ty = y + (hgt - itemLines[i].length * 20) / 2 + 15; c.fillStyle = '#1f2933'; c.font = F(600, 15); itemLines[i].forEach((ln, j) => c.fillText(ln, P + 92, ty + j * 20));
+      y += hgt + 10;
+    });
+    y += 20;
+    // timeline
+    c.fillStyle = '#1f2933'; c.font = F(700, 15); c.fillText('Recorrido', P, y); y += 24;
+    const sw = (W - P * 2) / steps.length;
+    c.strokeStyle = '#e7e2d9'; c.lineWidth = 4; c.beginPath(); c.moveTo(P + sw / 2, y + 8); c.lineTo(W - P - sw / 2, y + 8); c.stroke();
+    steps.forEach(([lab, d], i) => {
+      const x = P + sw * i + sw / 2, done = !!d && (i < 3 || !!e.f_retiro);
+      c.fillStyle = done ? sc : '#fff'; c.strokeStyle = done ? sc : '#cfc8bb'; c.lineWidth = 2; c.beginPath(); c.arc(x, y + 8, 8, 0, 7); c.fill(); c.stroke();
+      c.textAlign = 'center'; c.fillStyle = '#1f2933'; c.font = F(600, 12.5); c.fillText(lab, x, y + 36); c.fillStyle = '#6b7380'; c.font = F(400, 12); c.fillText(d ? fmtL(d) : '—', x, y + 54); c.textAlign = 'left';
+    });
+    y += 96;
+    // costs
+    const buy = n(e.total_compra), gc = n(e.factura_gc);
+    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(P, y, W - P * 2, 100, 12); c.fill();
+    const row = (k, v, yy, big) => { c.fillStyle = big ? '#1f2933' : '#6b7380'; c.font = F(big ? 700 : 400, big ? 16 : 14); c.fillText(k, P + 16, yy); c.textAlign = 'right'; c.fillStyle = '#1f2933'; c.font = F(700, big ? 18 : 14); c.fillText(v, W - P - 16, yy); c.textAlign = 'left'; };
+    row('Compra en la tienda', usd(buy), y + 28); row('Flete Gold Coast', gc != null ? usd(gc) : 'sin facturar', y + 52);
+    c.strokeStyle = '#efeae1'; c.lineWidth = 1; c.beginPath(); c.moveTo(P + 16, y + 66); c.lineTo(W - P - 16, y + 66); c.stroke();
+    row('Costo total', buy != null ? usd(buy + (gc || 0)) : '—', y + 88, true);
+    y += 120;
+    if (notes.length) { c.fillStyle = '#1f2933'; c.font = F(700, 15); c.fillText('Notas', P, y + 6); c.fillStyle = '#4b5563'; c.font = F(400, 13.5); notes.forEach((ln, j) => c.fillText(ln, P, y + 30 + j * 19)); y += 40 + notes.length * 19; }
+    c.fillStyle = '#9aa1ab'; c.font = F(400, 11); c.fillText('Generado el ' + fmtFull(todayISO()) + ' · Control de importaciones', P, y + 8);
+    const Hf = Math.min(H, y + 32); const out = document.createElement('canvas'); out.width = W * S2; out.height = Hf * S2;
+    out.getContext('2d').drawImage(cv, 0, 0, W * S2, Hf * S2, 0, 0, W * S2, Hf * S2);
+    return new Promise((res) => out.toBlob((b) => res(b), 'image/png'));
+  }
+  let DETAIL = null;
+  async function openDetail(e) {
+    DETAIL = { e, blob: null }; $('d-img').innerHTML = '<p class="hint">Preparando la imagen…</p>'; $('dscrim').hidden = false;
+    try {
+      const blob = await orderImage(e); if (!DETAIL || DETAIL.e !== e) return; DETAIL.blob = blob;
+      const im = new Image(); im.alt = 'Detalles del pedido'; im.src = URL.createObjectURL(blob); $('d-img').textContent = ''; $('d-img').append(im);
+    } catch (err) { $('d-img').innerHTML = '<p class="hint">No se pudo crear la imagen.</p>'; }
+  }
+  const detailName = () => 'pedido-' + ((DETAIL.e.pedido || DETAIL.e.recibo || DETAIL.e.f_compra || 'detalle') + '').replace(/[^\w-]+/g, '-') + '.png';
+  $('d-x').addEventListener('click', () => { $('dscrim').hidden = true; DETAIL = null; });
+  $('dscrim').addEventListener('click', (ev) => { if (ev.target === $('dscrim')) { $('dscrim').hidden = true; DETAIL = null; } });
+  $('d-edit').addEventListener('click', () => { const e = DETAIL && DETAIL.e; $('dscrim').hidden = true; DETAIL = null; if (e) openEditor(e); });
+  $('d-dl').addEventListener('click', () => { if (!DETAIL || !DETAIL.blob) return; const a = document.createElement('a'); a.href = URL.createObjectURL(DETAIL.blob); a.download = detailName(); document.body.append(a); a.click(); setTimeout(() => a.remove(), 500); });
+  $('d-share').addEventListener('click', async () => {
+    if (!DETAIL || !DETAIL.blob) return;
+    const file = new File([DETAIL.blob], detailName(), { type: 'image/png' });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Detalles del pedido' }); return; } } catch (err) { if (err && err.name === 'AbortError') return; }
+    $('d-dl').click();
+  });
 
   /* ---------- Data: one copy on the server (protected by the key), cached on each device ---------- */
   const KEY = 'control-importaciones-v1', QKEY = KEY + '-cola', RKEY = KEY + '-rev';
