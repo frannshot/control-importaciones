@@ -822,23 +822,33 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     if (!url) return null;
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     try { new URL(url); } catch (e) { return { error: 'Ese enlace no es válido' }; }
-    let asin = amazonAsin(url), img = null, title = null, finalUrl = url;
-    let meta = null;
+    const withTimeout = async (u, ms) => { const ac = new AbortController(); const to = setTimeout(() => ac.abort(), ms); try { const r = await fetch(u, { signal: ac.signal }); return r; } finally { clearTimeout(to); } };
+    let finalUrl = url, img = null, title = null, asin = amazonAsin(url), got = false;
+    // 1) Our own preview service (Netlify function, same site).
     try {
-      const ac = new AbortController(); const to = setTimeout(() => ac.abort(), 15000);
-      const r = await fetch('https://api.microlink.io/?url=' + encodeURIComponent(url), { signal: ac.signal });
-      const j = await r.json(); clearTimeout(to);
-      if (j && j.status === 'success' && j.data) meta = j.data;
-    } catch (e) { /* service unreachable: fall back to what the link says */ }
-    if (meta) {
-      if (meta.url) finalUrl = meta.url;
-      if (!asin) asin = amazonAsin(finalUrl);
-      title = cleanTitle(meta.title);
+      const r = await withTimeout('/.netlify/functions/preview?url=' + encodeURIComponent(url), 25000);
+      if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
+        const j = await r.json(); got = true;
+        if (j.url) finalUrl = j.url;
+        asin = asin || j.asin || amazonAsin(finalUrl);
+        title = j.title ? cleanTitle(j.title) : null;
+        if (j.image && await probeImg(j.image)) img = j.image;
+      }
+    } catch (e) { /* not available here */ }
+    // 2) Fallback: free preview service.
+    if (!got) {
+      try {
+        const r = await withTimeout('https://api.microlink.io/?url=' + encodeURIComponent(url), 15000);
+        const j = await r.json();
+        if (j && j.status === 'success' && j.data) {
+          const m = j.data; if (m.url) finalUrl = m.url; asin = asin || amazonAsin(finalUrl); title = cleanTitle(m.title);
+          if (!asin && m.image && m.image.url && await probeImg(m.image.url)) img = m.image.url;
+        }
+      } catch (e) { /* unreachable */ }
     }
+    if (!img && asin && await probeImg(asinImg(asin))) img = asinImg(asin);
     if (!title || BAD_TITLE.test(title)) title = slugName(finalUrl) || slugName(url) || null;
-    if (asin && await probeImg(asinImg(asin))) img = asinImg(asin);
-    if (!img && meta && meta.image && meta.image.url && !/prime_logo|\/logos?\//i.test(meta.image.url) && await probeImg(meta.image.url)) img = meta.image.url;
-    if (!img && !title) return { error: asin ? 'No encontré la imagen de ese producto' : 'No pude leer ese enlace. Revisa tu conexión o pega otro.' };
+    if (!img && !title) return { error: 'No pude leer ese enlace. Prueba de nuevo en un momento.' };
     return { img, title, url: finalUrl };
   }
 
