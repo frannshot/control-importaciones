@@ -418,7 +418,7 @@ h1 { font-size: 30px; }
     </div>
     <div class="chips" id="chips" role="group" aria-label="Filtrar por estado"></div>
     <div class="obar">
-      <span><b id="ocount">0 pedidos</b> <span id="ocount-n" style="color:var(--muted)"></span></span>
+      <span><b id="ocount">0 pedidos</b> <span id="ocount-n" style="color:var(--muted)"></span> <span id="sync-mini" class="hint"></span></span>
       <div class="row">
         <select id="osort" aria-label="Ordenar">
           <option value="f_compra:desc">Más recientes</option>
@@ -540,6 +540,13 @@ h1 { font-size: 30px; }
         <label class="f"><span>Dinero apartado para retiros (USD)</span><input id="c-cash" type="number" step="0.01" min="0" inputmode="decimal"></label>
       </div>
       <div class="row" style="margin-top:16px"><button class="btn primary" id="cfg-save" type="button">Guardar</button><span class="hint">Tus dos embarques de prueba tardaron 5 días del embarque al retiro.</span></div>
+    </section>
+    <section id="sync">
+      <div class="sect"><h2>Correos de Gold Coast</h2><span class="meta">Recibos y facturas se cargan solos</span></div>
+      <div class="fields">
+        <label class="f wide"><span>Clave de sincronización</span><input id="sync-key" type="password" autocomplete="off" placeholder="Pega aquí la clave que te dio Claude"></label>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="sync-save" type="button">Guardar clave</button><button class="btn" id="sync-now" type="button">Sincronizar ahora</button><span class="hint" id="sync-status">Sin configurar</span></div>
     </section>
   </main>
 </div>
@@ -1239,7 +1246,90 @@ h1 { font-size: 30px; }
   STORE.on('pendientes', () => { S.tasks = STORE.list('pendientes'); renderTasks(); });
   STORE.on('cotizaciones', () => { S.quotes = STORE.list('cotizaciones'); renderQuotes(); });
   STORE.on('config', () => { S.cfg = { ...DEF_CFG, ...(STORE.get('config', 'tarifas') || {}) }; renderCfg(); renderManifest(); renderAlerts(); renderLedger(); calc(); });
+
+  /* ---------- Gold Coast e-mail sync ---------- */
+  const normT = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const trackMatch = (a, b) => { a = normT(a); b = normT(b); if (a.length < 10 || b.length < 10) return false; return a === b || a.endsWith(b) || b.endsWith(a); };
+  const cleanTrack = (s) => { s = normT(s); const m = s.match(/^420\d{5}(9[2-5]\d{18,24})$/); return m ? m[1] : s; };
+  const niceName = (s) => { s = String(s || '').replace(/ITEM FROM:\s*[A-Z0-9 .&'-]+?(?=\s+\d|\s*$)/i, '').replace(/\b[A-Z0-9]{12,}\b/g, '').replace(/[-\s]+$/, '').trim(); if (!s) return null; s = s.toLowerCase().replace(/\bbooks\b/g, 'libros').replace(/\bbook\b/g, 'libro'); return s.charAt(0).toUpperCase() + s.slice(1); };
+  const titleCase = (s) => String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  function findEnv(d, list) {
+    let e = list.find((x) => x.recibo && String(x.recibo).replace(/-\d+$/, '') === d.recibo);
+    if (!e && d.trackings && d.trackings.length) e = list.find((x) => x.tracking && d.trackings.some((t) => trackMatch(t, x.tracking)));
+    return e || null;
+  }
+  async function applyDocs(docs) {
+    const cfg = STORE.get('config', 'sync') || {};
+    const applied = { ...(cfg.applied || {}) };
+    const fresh = docs.filter((d) => applied[d.id] !== d.updatedAt)
+      .sort((a, b) => (a.tipo === b.tipo ? 0 : a.tipo === 'recibo' ? -1 : 1) || String(a.fecha).localeCompare(String(b.fecha)));
+    let changed = 0, created = 0;
+    for (const d of fresh) {
+      const list = STORE.list('envios');
+      const e = findEnv(d, list); const isNew = !e;
+      const b = e ? { ...strip(e) } : { estado: 'En Miami', metodo: d.metodo || 'aereo', tienda: d.tienda ? titleCase(d.tienda) : null, items: [], articulos: null, creado: new Date().toISOString() };
+      b.recibo = b.recibo || d.recibo;
+      if (!b.f_miami && d.fecha) b.f_miami = d.fecha;
+      if (!b.estado || b.estado === 'En espera') b.estado = 'En Miami';
+      if (d.volumen != null) b.volumen_cuft = d.volumen;
+      if (d.tipo === 'recibo') {
+        if (!b.tracking && d.trackings && d.trackings[0]) b.tracking = cleanTrack(d.trackings[0]);
+        if (b.peso_lb == null && d.peso_real != null) b.peso_lb = Math.max(d.peso_real, d.peso_vol || 0);
+        if (!b.tienda && d.tienda) b.tienda = titleCase(d.tienda);
+        if (isNew) { const nm = niceName(d.contenido) || 'Paquete recibido en Miami'; b.items = [{ n: nm, img: null, url: null }]; b.articulos = nm; b.notas = 'Creado automáticamente con el recibo ' + d.recibo + ' de Gold Coast' + (d.valor_declarado != null ? '. Valor declarado: $' + Number(d.valor_declarado).toFixed(2) : '') + '. Completa la fecha de compra, el monto y los enlaces.'; }
+      } else {
+        if (d.total != null) { b.factura_gc = d.total; b.estado_flete = 'Confirmado'; }
+        if (d.embarque) b.embarque = d.embarque;
+        if (d.cobrado != null && d.cobrado_unidad === 'LB') b.peso_lb = d.cobrado;
+        if (!b.tracking && d.trackings && d.trackings[0]) b.tracking = cleanTrack(d.trackings[0]);
+        if (isNew) { const nm = niceName(d.notas) || 'Paquete facturado por Gold Coast'; b.items = [{ n: nm, img: null, url: null }]; b.articulos = nm; b.notas = 'Creado automáticamente con la factura ' + d.factura + ' de Gold Coast. Completa la fecha de compra, el monto y los enlaces.'; }
+      }
+      b.actualizado = new Date().toISOString();
+      if (isNew) { await S.db.collection('envios').add(b); created++; } else { await S.db.collection('envios').doc(e.id).set(b); changed++; }
+      applied[d.id] = d.updatedAt;
+    }
+    await S.db.doc('config/sync').set({ ...cfg, applied, last: new Date().toISOString() });
+    return { changed, created };
+  }
+  let syncing = false;
+  function syncMini() {
+    const cfg = STORE.get('config', 'sync') || {};
+    const el = $('sync-mini'); if (!el) return;
+    if (!cfg.key) { el.textContent = ''; return; }
+    if (!cfg.last) { el.textContent = '· Gold Coast: sin sincronizar'; return; }
+    const m = Math.round((Date.now() - new Date(cfg.last)) / 60000);
+    el.textContent = '· Gold Coast al día ' + (m < 1 ? 'ahora' : 'hace ' + m + ' min');
+  }
+  async function syncGC(manual) {
+    const cfg = STORE.get('config', 'sync') || {};
+    const st = $('sync-status');
+    if (!cfg.key) { if (manual) toast('Primero guarda la clave de sincronización'); st.textContent = 'Sin configurar'; return; }
+    if (syncing || !navigator.onLine) return;
+    syncing = true; if (manual) st.textContent = 'Sincronizando…';
+    try {
+      const r = await fetch('/.netlify/functions/gc', { headers: { 'x-key': cfg.key }, cache: 'no-store' });
+      if (r.status === 401) { st.textContent = 'La clave no es correcta'; if (manual) toast('La clave no es correcta'); return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      const res = await applyDocs(j.docs || []);
+      const msg = res.changed || res.created ? 'Gold Coast: ' + (res.changed ? res.changed + ' pedido' + (res.changed === 1 ? '' : 's') + ' actualizado' + (res.changed === 1 ? '' : 's') : '') + (res.changed && res.created ? ' y ' : '') + (res.created ? res.created + ' nuevo' + (res.created === 1 ? '' : 's') : '') : null;
+      if (msg) toast(msg); else if (manual) toast('Todo al día');
+      st.textContent = 'Última sincronización: ' + new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }) + ' · ' + (j.docs || []).length + ' documentos de Gold Coast';
+    } catch (e) { st.textContent = 'No se pudo sincronizar. Revisa tu conexión.'; if (manual) toast('No se pudo sincronizar'); }
+    finally { syncing = false; syncMini(); }
+  }
+  $('sync-save').addEventListener('click', async () => {
+    const k = $('sync-key').value.trim(); if (!k) { toast('Pega la clave primero'); return; }
+    const cfg = STORE.get('config', 'sync') || {};
+    await S.db.doc('config/sync').set({ ...cfg, key: k }); $('sync-key').value = ''; $('sync-key').placeholder = 'Clave guardada';
+    toast('Clave guardada'); syncGC(true);
+  });
+  $('sync-now').addEventListener('click', () => syncGC(true));
   pull(); renderAll();
+  if ((STORE.get('config', 'sync') || {}).key) { $('sync-key').placeholder = 'Clave guardada'; setTimeout(() => syncGC(false), 800); }
+  syncMini();
+  setInterval(() => { if (document.visibilityState === 'visible') syncGC(false); syncMini(); }, 120000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncGC(false); });
   if (/github\.io$/i.test(location.hostname)) {
     const ro = $('ro'); ro.hidden = false; ro.textContent = '';
     ro.append('Esta dirección ya no se actualiza y no puede buscar fotos de productos. Usa la nueva: ', h('a', { href: 'https://importaciones-fran.netlify.app/', class: 'link' }, 'importaciones-fran.netlify.app'), '. Antes, toca “Copia de seguridad” aquí y luego “Restaurar” allá.');
