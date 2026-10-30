@@ -22,7 +22,7 @@
   --focus: #1f5fd6;
   --link: #007185; --link-h: #c45500; --yel: #ffd814; --yel-b: #f2c200; --yel-ink: #0f1111; --go: #067d62; --oh: #ecece7;
   --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-body: Arial, "Helvetica Neue", Helvetica, -apple-system, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --r: 6px;
   color-scheme: light;
@@ -151,7 +151,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 .orders { display: flex; flex-direction: column; gap: 18px; }
 .order { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .ohead { background: var(--oh); border-bottom: 1px solid var(--line); padding: 12px 18px; display: flex; flex-wrap: wrap; gap: 8px 32px; align-items: flex-start; font-size: 12px; color: var(--muted); }
-.ohead .k { display: block; text-transform: uppercase; font-size: 11.5px; letter-spacing: .02em; }
+.ohead .k { display: block; text-transform: uppercase; font-size: 12px; letter-spacing: .01em; }
 .ohead .v { display: block; color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
 .ohead .right { margin-left: auto; text-align: right; }
 .link { color: var(--link); cursor: pointer; background: none; border: 0; padding: 0; font: inherit; font-size: 14px; text-decoration: none; }
@@ -160,7 +160,9 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 .ostatus { font-size: 18px; font-weight: 700; line-height: 1.3; color: var(--ink); }
 .ostatus.go { color: var(--go); }
 .ostatus.warn { color: var(--warn); }
-.osub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.osub { font-size: 14px; color: var(--ink); margin-top: 2px; }
+.ostatus + .osub { margin-bottom: 16px; }
+.ostatus:last-child { margin-bottom: 16px; }
 .prog { display: grid; grid-template-columns: repeat(4, 1fr); margin: 14px 0 16px; }
 .prog .s { position: relative; padding-top: 18px; font-size: 11.5px; color: var(--muted); text-align: center; }
 .prog .s::before { content: ""; position: absolute; top: 5px; left: 0; right: 0; height: 4px; background: var(--line); }
@@ -183,6 +185,16 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 .oitem .thumb:not(:has(img)) { background: var(--panel-2); border-radius: 6px; }
 .oitem .iname { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .oitem .pill { margin-top: 4px; align-self: flex-start; padding: 6px 16px; }
+.oitems.rows { flex-direction: column; gap: 18px; overflow: visible; scroll-snap-type: none; padding: 0; }
+.oitems.rows .oitem { flex: none; display: grid; grid-template-columns: 110px minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 20px; row-gap: 8px; align-items: start; }
+.oitems.rows .oitem > :first-child { grid-row: 1 / span 3; }
+.oitems.rows .oitem .thumb { width: 110px; height: 160px; }
+.oitems.rows .oitem .iname { -webkit-line-clamp: 3; font-size: 15px; }
+.oitems.rows .oitem .pill { margin-top: 2px; justify-self: start; }
+.oitems.rows .oitem .thumb img { object-position: top center; }
+.ocar.rows { grid-template-columns: minmax(0, 1fr); }
+.ocar.rows .arr { display: none; }
+.pill .ic { display: inline-block; margin-right: 6px; font-size: 15px; line-height: 1; }
 .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .thumb svg { width: 42%; height: 42%; }
 .iname { display: block; text-decoration: none; color: var(--link); font-size: 15px; line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
@@ -217,7 +229,10 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   .oacts { flex-direction: row; flex-wrap: wrap; }
   .oacts .pill { flex: 1 1 140px; }
   .ohead { gap: 8px 20px; padding: 10px 14px; }
-  .ohead .right { margin-left: 0; text-align: left; flex-basis: 100%; display: flex; gap: 12px; justify-content: space-between; align-items: baseline; }
+  .ohead .right { margin-left: 0; text-align: left; flex-basis: 100%; display: flex; flex-direction: column; gap: 2px; }
+  .ohead .right .link { text-align: left; }
+  .oitems.rows .oitem { grid-template-columns: 90px minmax(0, 1fr); column-gap: 14px; }
+  .oitems.rows .oitem .thumb { width: 90px; height: 130px; }
   .obody { padding: 14px; }
   .oitem { flex-basis: 150px; }
   .oitem .thumb { height: 150px; }
@@ -648,6 +663,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     return null;
   }
   const ML = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const fmtFull = (d) => { if (!d) return ''; const [y, m, dd] = d.split('-'); return Number(dd) + ' de ' + ML[Number(m) - 1] + ' de ' + y; };
   const fmtL = (d) => { if (!d) return ''; const [y, m, dd] = d.split('-'); return Number(dd) + ' de ' + ML[Number(m) - 1] + (y !== String(new Date().getFullYear()) ? ' de ' + y : ''); };
 
   /* ---------- Ledger ---------- */
@@ -711,19 +727,19 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     const st = statusOf(e), items = itemsOf(e), idx = Math.max(0, ESTADOS.findIndex((x) => x.k === e.estado));
     const tot = totalOf(e);
     const head = h('div', { class: 'ohead' },
-      h('div', null, h('span', { class: 'k' }, 'Pedido realizado'), h('span', { class: 'v' }, e.f_compra ? fmtL(e.f_compra) : '—')),
-      h('div', null, h('span', { class: 'k' }, 'Total'), h('span', { class: 'v' }, usd(tot))),
-      h('div', null, h('span', { class: 'k' }, 'Envío'), h('span', { class: 'v' }, (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo') + (e.tienda ? ' · ' + e.tienda : ''))),
-      h('div', { class: 'right' }, h('span', { class: 'k' }, e.recibo ? 'Recibo # ' + e.recibo : e.pedido ? 'Pedido # ' + e.pedido : 'Sin recibo aún'), h('button', { class: 'link', type: 'button', onclick: () => openEditor(e) }, 'Ver detalles')));
+      h('div', null, h('span', { class: 'k' }, 'Pedido realizado'), h('span', { class: 'v' }, e.f_compra ? fmtFull(e.f_compra) : '—')),
+      h('div', null, h('span', { class: 'k' }, 'Total'), h('span', { class: 'v' }, tot == null ? '—' : 'US' + usd(tot))),
+      h('div', null, h('span', { class: 'k' }, 'Enviar a'), h('span', { class: 'v', style: 'color:var(--link)' }, '118672 ' + (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo') + (e.tienda ? ' · ' + e.tienda : ''))),
+      h('div', { class: 'right' }, h('span', { class: 'k' }, e.pedido ? 'Pedido N.º ' + e.pedido : e.recibo ? 'Recibo N.º ' + e.recibo : 'Sin número de pedido'), h('button', { class: 'link', type: 'button', onclick: () => openEditor(e) }, 'Ver detalles del pedido')));
     const prog = h('div', { class: 'prog', 'aria-label': 'Progreso: ' + (e.estado || 'En espera') });
     ['Comprado', 'En Miami', 'En tránsito', 'Retirado'].forEach((l, i) => prog.append(h('div', { class: 's' + (i < idx ? ' done' : i === idx ? ' done now' : '') }, l)));
-    const list = h('div', { class: 'oitems' });
+    const list = h('div', { class: 'oitems' + (items.length <= 2 ? ' rows' : '') });
     items.forEach((it) => {
       const nm = it.n || 'Artículo sin nombre'; const th = thumbEl(it.img);
       const lk = it.url ? h('a', { class: 'iname', href: it.url, target: '_blank', rel: 'noopener' }, nm) : h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, nm);
       const thw = it.url ? h('a', { href: it.url, target: '_blank', rel: 'noopener', 'aria-label': nm }, th) : th;
       list.append(h('div', { class: 'oitem' }, thw, lk,
-        it.url ? h('a', { class: 'pill y', href: it.url, target: '_blank', rel: 'noopener' }, 'Ver producto') : h('div', { class: 'imeta' }, 'Agrega el enlace en “Editar pedido” para ver la foto')));
+        it.url ? h('a', { class: 'pill y', href: it.url, target: '_blank', rel: 'noopener' }, h('span', { class: 'ic', 'aria-hidden': 'true' }, '↻'), 'Comprar nuevamente') : h('div', { class: 'imeta' }, 'Agrega el enlace en “Editar pedido” para ver la foto')));
     });
     if (!items.length) list.append(h('div', { class: 'oitem' }, thumbEl(null), h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, 'Agrega los artículos de este pedido')));
     const prev = h('button', { class: 'arr', type: 'button', 'aria-label': 'Artículos anteriores', onclick: () => list.scrollBy({ left: -list.clientWidth * 0.8 }) }, '‹');
@@ -731,15 +747,16 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     const syncArr = () => { prev.disabled = list.scrollLeft <= 4; next.disabled = list.scrollLeft + list.clientWidth >= list.scrollWidth - 4; };
     list.addEventListener('scroll', syncArr, { passive: true });
     requestAnimationFrame(syncArr); setTimeout(syncArr, 600);
-    const car = h('div', { class: 'ocar' }, prev, list, next);
+    const car = h('div', { class: 'ocar' + (items.length <= 2 ? ' rows' : '') }, prev, list, next);
     const acts = h('div', { class: 'oacts' });
     const tu = trackUrl(e.tracking);
     const nx = NEXT[e.estado || 'En espera'];
     if (tu) acts.append(h('a', { class: 'pill', href: tu, target: '_blank', rel: 'noopener' }, 'Rastrear paquete'));
     if (nx) acts.append(h('button', { class: 'pill', type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? 'Marcar como retirado' : 'Pasar a ' + nx));
-    acts.append(h('button', { class: 'pill', type: 'button', onclick: () => openEditor(e) }, 'Editar pedido'));
+    acts.append(h('button', { class: 'pill', type: 'button', onclick: () => openEditor(e) }, 'Ver o editar pedido'));
     acts.append(h('button', { class: 'pill', type: 'button', disabled: S.ro || !S.db, onclick: () => { const b = { ...strip(e) }; ['tracking', 'recibo', 'embarque', 'f_miami', 'f_retiro', 'factura_gc', 'peso_lb', 'volumen_cuft', 'f_aprox_miami'].forEach((k) => { b[k] = null; }); b.estado = 'En espera'; b.f_compra = todayISO(); openEditor(null, b); toast('Copia lista: revisa y guarda'); } }, 'Volver a pedir'));
-    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, prog, car), acts);
+    if (acts.firstChild) acts.firstChild.classList.add('y');
+    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, car), acts);
     const foot = h('div', { class: 'ofoot' },
       h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra)))),
       h('span', null, 'Gold Coast ', h('b', null, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : 'sin facturar')),
