@@ -1360,7 +1360,32 @@ h1 { font-size: 30px; }
     ro.append('Esta dirección ya no se actualiza y no puede buscar fotos de productos. Usa la nueva: ', h('a', { href: 'https://importaciones-fran.netlify.app/', class: 'link' }, 'importaciones-fran.netlify.app'), '. Antes, toca “Copia de seguridad” aquí y luego “Restaurar” allá.');
   }
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { /* optional */ }
-  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  /* ---------- Self-update: when a new version is published, reload on its own ---------- */
+  const APP_V = 'importaciones-v16';
+  let swReg = null;
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {}));
+  const busyNow = () => !$('scrim').hidden || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+  let pendingUpdate = false;
+  async function checkUpdate() {
+    if (!navigator.onLine) return;
+    try {
+      const txt = await fetch('sw.js?v=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.text() : ''));
+      const m = txt.match(/CACHE = '([^']+)'/);
+      if (!m || m[1] === APP_V) return;
+      try { if (sessionStorage.getItem('upd-to') === m[1]) return; sessionStorage.setItem('upd-to', m[1]); } catch (e) { /* ok */ } // never loop
+      pendingUpdate = true;
+      try { swReg && await swReg.update(); } catch (e) { /* optional */ }
+      applyUpdate();
+    } catch (e) { /* try later */ }
+  }
+  function applyUpdate() {
+    if (!pendingUpdate) return;
+    if (busyNow() || STORE.queue().length) { setTimeout(applyUpdate, 5000); return; }
+    toast('Nueva versión: actualizando…'); setTimeout(() => location.reload(), 900);
+  }
+  setTimeout(checkUpdate, 4000);
+  setInterval(() => { if (document.visibilityState === 'visible') checkUpdate(); }, 5 * 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 })();
 </script>
 </body>
