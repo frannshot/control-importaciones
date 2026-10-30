@@ -414,7 +414,8 @@ body { background: radial-gradient(1200px 420px at 15% -80px, #fff1d6 0%, transp
 .tab[aria-selected="true"] { background: #fff; color: #12343b; box-shadow: 0 2px 8px rgb(0 0 0 / .18); }
 .ohdr h2 { font-weight: 600; color: var(--ink); }
 .osearch .search, .search { background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; box-shadow: var(--sh-1); }
-#chips { border-bottom: 0; gap: 8px; padding: 2px 0 4px; }
+#chips { border-bottom: 0; gap: 8px; padding: 2px 0 4px; scrollbar-width: none; }
+#chips::-webkit-scrollbar { display: none; }
 #chips .chip { border: 1px solid var(--line); border-radius: 99px; background: #fff; color: var(--ink); font-weight: 600; padding: 6px 12px; box-shadow: 0 1px 2px rgb(31 41 51 / .04); }
 #chips .chip i { display: inline-block; background: var(--c); }
 #chips .chip b { background: var(--panel-2); color: var(--muted); border-radius: 99px; padding: 0 7px; font-size: 12px; font-weight: 700; }
@@ -433,8 +434,8 @@ body { background: radial-gradient(1200px 420px at 15% -80px, #fff1d6 0%, transp
 .ostatus.go { color: var(--go); }
 .order .ostatus::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--sc, var(--muted)); margin-right: 8px; vertical-align: middle; position: relative; top: -2px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sc, #999) 18%, transparent); }
 .osub { color: var(--muted); }
-.oitem .thumb, .oitems.rows .oitem .thumb { background: linear-gradient(180deg, #faf8f4, #f2efe8); border-radius: 12px; padding: 8px; align-items: center; }
-.oitem .thumb img { border-radius: 4px; filter: drop-shadow(0 4px 8px rgb(31 41 51 / .14)); }
+.oitem .thumb, .oitems.rows .oitem .thumb { background: transparent; border-radius: 0; padding: 0; }
+.oitem .thumb:not(:has(img)) { background: var(--panel-2); border-radius: 10px; }
 .ocar .arr { border: 0; border-radius: 99px; width: 34px; height: 34px; background: #fff; box-shadow: var(--sh-2); color: var(--ink); }
 .pill { border-color: var(--line); background: #fff; box-shadow: 0 1px 2px rgb(31 41 51 / .06); font-weight: 600; transition: background .15s ease, transform .1s ease; }
 .pill:hover { background: var(--panel-2); }
