@@ -744,9 +744,35 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
       box.append(h('div', { class: 'panel empty' }, h('b', null, msg[0]), msg[1]));
     }
     L.forEach((e) => box.append(orderCard(e)));
+    setTimeout(fillMissing, 400);
     const sc = L.reduce((s, e) => s + (n(e.total_compra) || 0), 0), sg = L.reduce((s, e) => s + (n(e.factura_gc) || 0), 0);
     const ot = $('ototal'); ot.textContent = '';
     if (L.length) ot.append(h('span', null, 'Compras ', h('b', null, usd(r2(sc)))), h('span', null, 'Gold Coast ', h('b', null, usd(r2(sg)))), h('span', null, 'Total ', h('b', null, usd(r2(sc + sg)))));
+  }
+
+  /* Fill in photos for items that have a link but no photo yet */
+  const TRIED = new Set(); let filling = false;
+  async function fillMissing() {
+    if (filling || !S.db || !navigator.onLine) return;
+    filling = true;
+    try {
+      for (const env of (S.env || [])) {
+        const items = itemsOf(env);
+        const need = items.filter((it) => it.url && !it.img && !TRIED.has(it.url));
+        if (!need.length) continue;
+        let changed = false;
+        for (const it of need) {
+          TRIED.add(it.url);
+          const r = await linkPreview(it.url);
+          if (r && !r.error && r.img) { it.img = r.img; if (!it.n && r.title) it.n = r.title; changed = true; }
+        }
+        if (changed) {
+          const cur = (S.env || []).find((x) => x.id === env.id); if (!cur) continue;
+          const merged = itemsOf(cur).map((x) => { const f = items.find((y) => y.url && y.url === x.url && y.img); return f ? { ...x, img: f.img, n: x.n || f.n } : x; });
+          await S.db.collection('envios').doc(env.id).set({ ...strip(cur), items: merged, articulos: merged.map((x) => x.n).filter(Boolean).join('\n') || null });
+        }
+      }
+    } finally { filling = false; }
   }
   $('osort').addEventListener('change', (ev) => { const [k, dir] = ev.target.value.split(':'); S.sort = { k, dir }; renderLedger(); });
   $('q').addEventListener('input', (e) => { S.q = e.target.value; renderLedger(); });
@@ -881,6 +907,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
         if (!r.img) st.className = 'ist err';
       };
       link.addEventListener('change', go);
+      if (it.url && !it.img) { last = ''; setTimeout(go, 100); }
       link.addEventListener('paste', () => setTimeout(go, 50));
       link.addEventListener('blur', go);
       const rm = h('button', { class: 'x', type: 'button', 'aria-label': 'Quitar artículo', onclick: () => { ED_ITEMS.splice(i, 1); if (!ED_ITEMS.length) ED_ITEMS.push({ n: '', img: null, url: null }); renderEdItems(); } }, '×');
@@ -1127,6 +1154,10 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   STORE.on('cotizaciones', () => { S.quotes = STORE.list('cotizaciones'); renderQuotes(); });
   STORE.on('config', () => { S.cfg = { ...DEF_CFG, ...(STORE.get('config', 'tarifas') || {}) }; renderCfg(); renderManifest(); renderAlerts(); renderLedger(); calc(); });
   pull(); renderAll();
+  if (/github\.io$/i.test(location.hostname)) {
+    const ro = $('ro'); ro.hidden = false; ro.textContent = '';
+    ro.append('Esta dirección ya no se actualiza y no puede buscar fotos de productos. Usa la nueva: ', h('a', { href: 'https://importaciones-fran.netlify.app/', class: 'link' }, 'importaciones-fran.netlify.app'), '. Antes, toca “Copia de seguridad” aquí y luego “Restaurar” allá.');
+  }
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { /* optional */ }
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 })();
