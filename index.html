@@ -21,6 +21,7 @@
   --buy: #d9560f; --air: #1f5fd6; --sea: #0d7c74; --ok: #19804a; --warn: #a96500; --bad: #c2312b;
   --st-wait: #b8620b; --st-mia: #1f5fd6; --st-tr: #6a3fc7; --st-done: #19804a;
   --focus: #1f5fd6;
+  --link: #007185; --link-h: #c45500; --yel: #ffd814; --yel-b: #f2c200; --yel-ink: #0f1111; --go: #067d62; --oh: #f0f2f2;
   --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -29,11 +30,11 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0f141a; --panel: #18202a; --panel-2: #1e2833; --ink: #e8edf2; --muted: #93a1b0; --line: #2c3845;
   --buy: #f07a35; --air: #6c9cf3; --sea: #3fb5a9; --ok: #4cc283; --warn: #e2a23c; --bad: #ef6b63;
-  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; color-scheme: dark; } }
+  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; --link: #56c5d8; --link-h: #f5a35c; --go: #45c99c; --oh: #222c37; color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #0f141a; --panel: #18202a; --panel-2: #1e2833; --ink: #e8edf2; --muted: #93a1b0; --line: #2c3845;
   --buy: #f07a35; --air: #6c9cf3; --sea: #3fb5a9; --ok: #4cc283; --warn: #e2a23c; --bad: #ef6b63;
-  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; color-scheme: dark; }
+  --st-wait: #eb9a3d; --st-mia: #6c9cf3; --st-tr: #a98af0; --st-done: #4cc283; --focus: #6c9cf3; --link: #56c5d8; --link-h: #f5a35c; --go: #45c99c; --oh: #222c37; color-scheme: dark; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; -webkit-text-size-adjust: 100%; }
@@ -138,6 +139,83 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 }
 .empty { padding: 30px 18px; text-align: center; color: var(--muted); }
 .empty b { display: block; color: var(--ink); font-family: var(--f-display); font-size: 20px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+
+
+/* Orders (order-history style) */
+.ohdr { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ohdr h2 { font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-size: 26px; font-weight: 500; }
+.osearch { display: flex; gap: 8px; flex: 1 1 320px; max-width: 460px; }
+.osearch .search { flex: 1; width: auto; border-radius: 6px; }
+#chips { gap: 0; border-bottom: 1px solid var(--line); flex-wrap: nowrap; overflow-x: auto; }
+#chips .chip { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 9px 12px; color: var(--link); font-weight: 500; white-space: nowrap; }
+#chips .chip i { display: none; }
+#chips .chip b { color: var(--muted); font-weight: 400; }
+#chips .chip[aria-pressed="true"] { background: none; color: var(--ink); font-weight: 700; border-bottom-color: var(--link-h); }
+#chips .chip[aria-pressed="true"] b { color: var(--muted); }
+.obar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.obar select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 14px; box-shadow: 0 2px 5px rgb(15 17 17 / .08); }
+.orders { display: flex; flex-direction: column; gap: 18px; }
+.order { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.ohead { background: var(--oh); border-bottom: 1px solid var(--line); padding: 12px 18px; display: flex; flex-wrap: wrap; gap: 8px 32px; align-items: flex-start; font-size: 12px; color: var(--muted); }
+.ohead .k { display: block; text-transform: uppercase; font-size: 11.5px; letter-spacing: .02em; }
+.ohead .v { display: block; color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; }
+.ohead .right { margin-left: auto; text-align: right; }
+.link { color: var(--link); cursor: pointer; background: none; border: 0; padding: 0; font: inherit; font-size: 14px; text-decoration: none; }
+.link:hover { color: var(--link-h); text-decoration: underline; }
+.obody { padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 18px; }
+.ostatus { font-size: 18px; font-weight: 700; line-height: 1.3; color: var(--ink); }
+.ostatus.go { color: var(--go); }
+.ostatus.warn { color: var(--warn); }
+.osub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.prog { display: grid; grid-template-columns: repeat(4, 1fr); margin: 14px 0 16px; }
+.prog .s { position: relative; padding-top: 18px; font-size: 11.5px; color: var(--muted); text-align: center; }
+.prog .s::before { content: ""; position: absolute; top: 5px; left: 0; right: 0; height: 4px; background: var(--line); }
+.prog .s:first-child::before { left: 50%; border-radius: 4px 0 0 4px; }
+.prog .s:last-child::before { right: 50%; }
+.prog .s::after { content: ""; position: absolute; top: 1px; left: calc(50% - 6px); width: 12px; height: 12px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); box-sizing: border-box; }
+.prog .s.done::before, .prog .s.done::after { background: var(--go); border-color: var(--go); }
+.prog .s.half::before { background: linear-gradient(90deg, var(--go) 50%, var(--line) 50%); }
+.prog .s.now { color: var(--ink); font-weight: 700; }
+.prog .s.now:not(:last-child)::before { background: linear-gradient(90deg, var(--go) 50%, var(--line) 50%); }
+.oitems { display: flex; flex-direction: column; gap: 14px; }
+.oitem { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 14px; align-items: start; }
+.thumb { width: 90px; height: 90px; border-radius: 4px; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; color: #9aa4ae; flex: none; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.thumb svg { width: 42%; height: 42%; }
+.iname { color: var(--link); font-size: 15px; line-height: 1.35; cursor: pointer; overflow-wrap: anywhere; }
+.iname:hover { color: var(--link-h); text-decoration: underline; }
+.imeta { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.imore { font-size: 13.5px; color: var(--muted); }
+.oacts { display: flex; flex-direction: column; gap: 8px; }
+.pill { display: block; text-align: center; border-radius: 99px; padding: 8px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 13.5px; cursor: pointer; box-shadow: 0 2px 5px rgb(15 17 17 / .12); text-decoration: none; }
+.pill:hover { background: var(--panel-2); }
+.pill.y { background: var(--yel); border-color: var(--yel-b); color: var(--yel-ink); }
+.pill.y:hover { filter: brightness(.96); }
+.pill:disabled { opacity: .5; cursor: not-allowed; }
+.ofoot { border-top: 1px solid var(--line); padding: 10px 18px; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 22px; font-variant-numeric: tabular-nums; }
+.ofoot b { color: var(--ink); font-weight: 600; }
+.ofoot .mono { font-size: 12px; }
+.ototal { display: flex; flex-wrap: wrap; gap: 4px 22px; font-size: 14px; color: var(--muted); padding: 4px 2px; }
+.ototal b { color: var(--ink); }
+/* Item editor */
+.items-ed { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; }
+.ied { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.ied .thumb { width: 60px; height: 60px; cursor: pointer; position: relative; }
+.ied .thumb .cam { position: absolute; right: 2px; bottom: 2px; background: var(--ink); color: var(--panel); border-radius: 99px; font-size: 10px; padding: 1px 5px; font-weight: 700; }
+.ied input[type=text] { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; font-size: 16px; }
+.ied input[type=text]:focus { outline: 2px solid color-mix(in srgb, var(--focus) 50%, transparent); outline-offset: 0; border-color: var(--focus); }
+@media (max-width: 680px) {
+  .obody { grid-template-columns: 1fr; }
+  .oacts { flex-direction: row; flex-wrap: wrap; }
+  .oacts .pill { flex: 1 1 140px; }
+  .ohead { gap: 8px 20px; padding: 10px 14px; }
+  .ohead .right { margin-left: 0; text-align: left; flex-basis: 100%; display: flex; gap: 12px; justify-content: space-between; align-items: baseline; }
+  .obody { padding: 14px; }
+  .oitem { grid-template-columns: 72px minmax(0, 1fr); }
+  .oitem .thumb { width: 72px; height: 72px; }
+  .prog .s { font-size: 10.5px; }
+  .ohdr h2 { font-size: 22px; }
+}
 
 /* Sections */
 .sect { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); margin-bottom: 14px; }
@@ -255,41 +333,40 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 
   <!-- ENVIOS -->
   <main id="v-envios" class="view">
+    <section class="alerts" id="alerts" hidden></section>
+    <div class="ohdr">
+      <h2>Tus pedidos</h2>
+      <div class="osearch"><input class="search" id="q" type="search" placeholder="Buscar en todos los pedidos" aria-label="Buscar en todos los pedidos"></div>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filtrar por estado"></div>
+    <div class="obar">
+      <span><b id="ocount">0 pedidos</b> <span id="ocount-n" style="color:var(--muted)"></span></span>
+      <div class="row">
+        <select id="osort" aria-label="Ordenar">
+          <option value="f_compra:desc">Más recientes</option>
+          <option value="f_compra:asc">Más antiguos</option>
+          <option value="total:desc">Mayor total</option>
+          <option value="estado:asc">Por estado</option>
+        </select>
+        <button class="btn primary" id="new" type="button">+ Nuevo pedido</button>
+      </div>
+    </div>
+    <section class="orders" id="orders" aria-label="Pedidos"><p class="loading">Cargando tus pedidos…</p></section>
+    <div class="ototal" id="ototal"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost small" id="backup" type="button">Copia de seguridad</button>
+      <label class="btn ghost small" for="restore-file">Restaurar</label><input id="restore-file" type="file" accept="application/json,.json" hidden>
+    </div>
+  </main>
+
+  <!-- RESUMEN -->
+  <main id="v-resumen" class="view" hidden>
     <section class="manifest" aria-label="Totales">
       <div class="cell" style="--c: var(--buy)"><span class="eyebrow lab">Total de compras</span><span class="val" id="m-compras">—</span><span class="note" id="m-compras-n">&nbsp;</span></div>
       <div class="cell" style="--c: var(--air)"><span class="eyebrow lab">Facturas Gold Coast</span><span class="val" id="m-gc">—</span><span class="note" id="m-gc-n">&nbsp;</span></div>
       <div class="cell" style="--c: var(--ink)"><span class="eyebrow lab">Total gastado</span><span class="val" id="m-total">—</span><span class="note" id="m-total-n">&nbsp;</span></div>
       <div class="cell" style="--c: var(--ok)"><span class="eyebrow lab">Por pagar en Las Mercedes</span><span class="val" id="m-pagar">—</span><span class="note" id="m-pagar-n">&nbsp;</span></div>
     </section>
-
-    <section class="alerts" id="alerts" aria-label="Atención"></section>
-
-    <section>
-      <div class="toolbar">
-        <div class="chips" id="chips" role="group" aria-label="Filtrar por estado"></div>
-        <div class="row">
-          <input class="search" id="q" type="search" placeholder="Buscar artículo, tracking, recibo…" aria-label="Buscar">
-          <button class="btn" id="backup" type="button">Copia de seguridad</button>
-          <label class="btn" for="restore-file">Restaurar</label><input id="restore-file" type="file" accept="application/json,.json" hidden>
-          <button class="btn primary" id="new" type="button">+ Nuevo envío</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="ledger" aria-label="Registro de envíos">
-      <div class="tblwrap">
-        <table id="tbl">
-          <thead><tr id="thead"></tr></thead>
-          <tbody id="tbody"><tr><td class="loading" colspan="14">Cargando tus envíos…</td></tr></tbody>
-          <tfoot><tr id="tfoot"></tr></tfoot>
-        </table>
-      </div>
-      <div class="cards" id="cards"></div>
-    </section>
-  </main>
-
-  <!-- RESUMEN -->
-  <main id="v-resumen" class="view" hidden>
     <section class="panel">
       <div class="kv3" id="kpis"></div>
     </section>
@@ -394,7 +471,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 <!-- Editor -->
 <div class="scrim" id="scrim" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ed-title">
-    <header><h2 id="ed-title">Nuevo envío</h2><button class="x" id="ed-x" type="button" aria-label="Cerrar">×</button></header>
+    <header><h2 id="ed-title">Nuevo pedido</h2><button class="x" id="ed-x" type="button" aria-label="Cerrar">×</button></header>
     <form class="body" id="ed" novalidate>
       <div class="fields">
         <div class="group"><span>Compra</span></div>
@@ -402,7 +479,9 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
         <label class="f"><span>Tienda</span><input id="e-tienda" type="text" list="stores" placeholder="Amazon"></label>
         <label class="f"><span>Nº de pedido</span><input id="e-pedido" type="text"></label>
         <label class="f"><span>Fecha de compra</span><input id="e-f_compra" type="date"></label>
-        <label class="f wide"><span>Artículos</span><textarea id="e-articulos" placeholder="Un artículo por línea"></textarea></label>
+        <div class="f wide"><span>Artículos · toca el cuadro para agregar una foto</span></div>
+        <div class="items-ed" id="e-items"></div>
+        <div class="f wide"><button class="btn small" id="e-additem" type="button" style="justify-self:start;width:max-content">+ Agregar artículo</button></div>
         <label class="f"><span>Total de la compra (USD)</span><input id="e-total_compra" type="number" min="0" step="0.01" inputmode="decimal"></label>
 
         <div class="group"><span>Envío a Miami</span></div>
@@ -515,6 +594,52 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   }
   const firstLine = (s) => { const t = String(s || 'Sin artículos').replace(/\s*\n\s*/g, ' ').trim(); return t.length > 60 ? t.slice(0, 58) + '…' : t; };
 
+
+  /* ---------- Images (stored on this device) ---------- */
+  const IMG = (() => {
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((res, rej) => { const r = indexedDB.open('importaciones-img', 1); r.onupgradeneeded = () => r.result.createObjectStore('img'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+    const cache = new Map();
+    const run = (mode, fn) => open().then((db) => new Promise((res, rej) => { const tx = db.transaction('img', mode); const out = fn(tx.objectStore('img')); tx.oncomplete = () => res(out); tx.onerror = () => rej(tx.error); }));
+    return {
+      put: (k, v) => { cache.set(k, v); return run('readwrite', (s) => s.put(v, k)); },
+      get: async (k) => { if (cache.has(k)) return cache.get(k); try { const r = await run('readonly', (s) => s.get(k)); cache.set(k, r.result); return r.result; } catch (e) { return null; } },
+      del: (k) => { cache.delete(k); return run('readwrite', (s) => s.delete(k)).catch(() => {}); },
+      all: async () => { try { const [ks, vs] = await run('readonly', (s) => [s.getAllKeys(), s.getAll()]).then(([a, b]) => [a.result, b.result]); const o = {}; ks.forEach((k, i) => { o[k] = vs[i]; }); return o; } catch (e) { return {}; } },
+    };
+  })();
+  async function compressImage(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+      const max = 360, sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+      const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.82);
+    } finally { URL.revokeObjectURL(url); }
+  }
+  const BOX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5Z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg>';
+  function thumbEl(img) {
+    const el = h('span', { class: 'thumb' });
+    if (img) {
+      const im = h('img', { alt: '' });
+      if (/^https?:/.test(img)) im.src = img; else IMG.get(img).then((v) => { if (v) im.src = v; else { el.innerHTML = BOX; } });
+      el.append(im);
+    } else el.innerHTML = BOX;
+    return el;
+  }
+  const itemsOf = (e) => (Array.isArray(e.items) && e.items.length ? e.items : String(e.articulos || '').split('\n').map((s) => s.trim()).filter(Boolean).map((nm) => ({ n: nm, img: null })));
+  function trackUrl(t) {
+    t = String(t || '').replace(/\s/g, '');
+    if (/^1Z[0-9A-Z]{16}$/i.test(t)) return 'https://www.ups.com/track?tracknum=' + t;
+    if (/^9[1-5]\d{18,24}$/.test(t)) return 'https://tools.usps.com/go/TrackConfirmAction?tLabels=' + t;
+    if (/^(\d{12}|\d{15})$/.test(t)) return 'https://www.fedex.com/fedextrack/?trknbr=' + t;
+    return null;
+  }
+  const ML = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const fmtL = (d) => { if (!d) return ''; const [y, m, dd] = d.split('-'); return Number(dd) + ' de ' + ML[Number(m) - 1] + (y !== String(new Date().getFullYear()) ? ' de ' + y : ''); };
+
   /* ---------- Ledger ---------- */
   const COLS = [
     { k: 'estado', l: 'Estado', sort: (e) => ESTADOS.findIndex((x) => x.k === e.estado) },
@@ -537,7 +662,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     if (S.filter === 'activos') L = L.filter((e) => e.estado !== 'Terminado');
     else if (S.filter !== 'todos') L = L.filter((e) => e.estado === S.filter);
     const q = S.q.trim().toLowerCase();
-    if (q) L = L.filter((e) => [e.articulos, e.tracking, e.recibo, e.tienda, e.embarque, e.pedido, e.notas].join(' ').toLowerCase().includes(q));
+    if (q) L = L.filter((e) => [itemsOf(e).map((i) => i.n).join(' '), e.articulos, e.tracking, e.recibo, e.tienda, e.embarque, e.pedido, e.notas].join(' ').toLowerCase().includes(q));
     const col = COLS.find((c) => c.k === S.sort.k) || COLS[1];
     L.sort((a, b) => { const x = col.sort(a), y = col.sort(b); return (x < y ? -1 : x > y ? 1 : 0) * (S.sort.dir === 'asc' ? 1 : -1); });
     return L;
@@ -548,66 +673,91 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     const opts = [['activos', 'En curso', L.filter((e) => e.estado !== 'Terminado').length, 'var(--ink)'], ...ESTADOS.map((e) => [e.k, e.k, L.filter((x) => x.estado === e.k).length, e.c]), ['todos', 'Todos', L.length, 'var(--muted)']];
     opts.forEach(([k, l, c, col]) => box.append(h('button', { class: 'chip', type: 'button', 'aria-pressed': S.filter === k, style: '--c:' + col, onclick: () => { S.filter = k; renderChips(); renderLedger(); } }, h('i'), l, h('b', null, String(c)))));
   }
-  function renderLedger() {
-    const thr = $('thead'); thr.textContent = '';
-    COLS.forEach((c) => {
-      const th = h('th', { class: c.r ? 'r' : null, 'aria-sort': S.sort.k === c.k ? (S.sort.dir === 'asc' ? 'ascending' : 'descending') : null });
-      th.append(h('button', { type: 'button', onclick: () => { S.sort = { k: c.k, dir: S.sort.k === c.k && S.sort.dir === 'desc' ? 'asc' : 'desc' }; renderLedger(); } }, c.l));
-      thr.append(th);
-    });
-    const tb = $('tbody'); tb.textContent = '';
-    const cards = $('cards'); cards.textContent = '';
-    if (S.env == null) { tb.append(h('tr', null, h('td', { class: 'loading', colspan: COLS.length }, 'Cargando tus envíos…'))); return; }
-    const L = visible();
-    if (!L.length) {
-      const msg = S.env.length ? ['Nada en esta vista', 'Cambia el filtro o la búsqueda.'] : ['Aún no hay envíos', 'Pulsa “+ Nuevo envío” para registrar una compra, o “Restaurar” para cargar una copia de seguridad.'];
-      tb.append(h('tr', null, h('td', { colspan: COLS.length }, h('div', { class: 'empty' }, h('b', null, msg[0]), msg[1]))));
-      cards.append(h('div', { class: 'empty' }, h('b', null, msg[0]), msg[1]));
+  function statusOf(e) {
+    const t0 = todayISO(), est = retiroEst(e);
+    if (e.estado === 'Terminado') return { t: e.f_retiro ? 'Retirado el ' + fmtL(e.f_retiro) : 'Retirado', s: 'Recibido en Las Mercedes', c: '' };
+    if (e.estado === 'En tránsito') {
+      if (est && est <= t0) return { t: 'Listo para retirar', s: 'Embarque ' + (e.embarque || '') + '. Confirma por teléfono antes de ir.', c: 'go' };
+      return { t: est ? 'Llega aprox. el ' + fmtL(est) : 'En camino a Caracas', s: e.embarque ? 'Embarque ' + e.embarque : 'Despachado desde Miami', c: 'go' };
     }
-    L.forEach((e) => {
-      const est = retiroEst(e);
-      const tr = h('tr', { tabindex: '0', onclick: () => openEditor(e), onkeydown: (ev) => { if (ev.key === 'Enter') openEditor(e); } });
-      const dateCell = (d, alt, altLbl) => h('td', { class: 'date' }, d ? fmtD(d) : alt ? h('span', { class: 'est' }, altLbl + ' ' + fmtD(alt)) : h('span', { class: 'none' }, '—'));
-      tr.append(
-        h('td', null, stPill(e.estado)),
-        dateCell(e.f_compra),
-        dateCell(e.f_miami, e.f_aprox_miami, '≈'),
-        h('td', { class: 'track' }, e.embarque || h('span', { class: 'none' }, '—')),
-        dateCell(e.f_retiro, est, 'est.'),
-        h('td', null, e.tienda || h('span', { class: 'none' }, '—')),
-        h('td', { class: 'items' }, h('div', { class: 'clip' }, e.articulos || '—')),
-        h('td', null, modeIcon(e.metodo)),
-        h('td', { class: 'track' }, e.tracking || h('span', { class: 'none' }, 'Pendiente')),
-        h('td', { class: 'r' }, n(e.peso_lb) != null ? n(e.peso_lb).toFixed(2) + ' lb' : h('span', { class: 'none' }, '—'), n(e.peso_lb) != null ? h('span', { class: 'sub' }, (n(e.peso_lb) * 0.453592).toFixed(2) + ' kg') : null),
-        h('td', { class: 'track' }, e.recibo || h('span', { class: 'none' }, '—')),
-        h('td', { class: 'r' }, usd(n(e.total_compra))),
-        h('td', { class: 'r' }, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : h('span', { class: 'none' }, 'No facturado')),
-        h('td', { class: 'r' }, h('b', null, usd(totalOf(e)))),
-      );
-      tb.append(tr);
-      cards.append(h('div', { class: 'card', tabindex: '0', onclick: () => openEditor(e) },
-        h('div', { class: 't' }, stPill(e.estado), h('span', { class: 'row', style: 'gap:6px;color:var(--muted);font-size:13px' }, e.tienda || '', modeIcon(e.metodo))),
-        h('div', { class: 'it' }, e.articulos || 'Sin artículos'),
-        h('div', { class: 'meta' }, e.f_compra ? h('span', null, 'Compra ' + fmtD(e.f_compra)) : null, e.f_miami ? h('span', null, 'Miami ' + fmtD(e.f_miami)) : e.f_aprox_miami ? h('span', null, 'Miami ≈ ' + fmtD(e.f_aprox_miami)) : null, e.f_retiro ? h('span', null, 'Retiro ' + fmtD(e.f_retiro)) : est ? h('span', null, 'Retiro est. ' + fmtD(est)) : null, e.recibo ? h('span', { class: 'mono' }, '#' + e.recibo) : null),
-        h('div', { class: 'money' }, h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra)))), h('span', null, 'GC ', h('b', null, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : '—')), h('span', null, 'Total ', h('b', null, usd(totalOf(e)))))));
-    });
-    // footer totals (of the visible rows)
-    const tf = $('tfoot'); tf.textContent = '';
-    const sc = L.reduce((s, e) => s + (n(e.total_compra) || 0), 0), sg = L.reduce((s, e) => s + (n(e.factura_gc) || 0), 0), sw = L.reduce((s, e) => s + (n(e.peso_lb) || 0), 0);
-    tf.append(h('td', { colspan: 9 }, 'TOTAL · ' + L.length + (L.length === 1 ? ' envío' : ' envíos')), h('td', { class: 'r' }, sw ? r2(sw).toFixed(2) + ' lb' : ''), h('td'), h('td', { class: 'r' }, usd(r2(sc))), h('td', { class: 'r' }, usd(r2(sg))), h('td', { class: 'r' }, usd(r2(sc + sg))));
-    cards.append(h('div', { class: 'cardfoot' }, h('span', null, 'TOTAL'), h('span', null, 'Compra ' + usd(r2(sc))), h('span', null, 'GC ' + usd(r2(sg))), h('span', null, 'Total ' + usd(r2(sc + sg)))));
+    if (e.estado === 'En Miami') {
+      const d = e.f_miami ? days(e.f_miami, t0) : null;
+      if (n(e.factura_gc) == null && d != null && d >= 3) return { t: 'En Miami, sin factura', s: 'Lleva ' + d + ' días en el almacén sin factura de Gold Coast.', c: 'warn' };
+      if (est) return { t: 'Llega aprox. el ' + fmtL(est), s: 'En Miami' + (e.f_miami ? ' desde el ' + fmtL(e.f_miami) : '') + ' · embarque ' + e.embarque, c: 'go' };
+      return { t: 'En el almacén de Miami', s: e.f_miami ? 'Recibido el ' + fmtL(e.f_miami) : 'Esperando embarque', c: 'go' };
+    }
+    if (e.f_aprox_miami && e.f_aprox_miami < t0) return { t: 'Retrasado', s: 'Debía llegar a Miami el ' + fmtL(e.f_aprox_miami) + '. Revisa el tracking.', c: 'warn' };
+    return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Esperando envío de la tienda', s: e.f_compra ? 'Comprado el ' + fmtL(e.f_compra) : '', c: 'go' };
   }
+  const NEXT = { 'En espera': 'En Miami', 'En Miami': 'En tránsito', 'En tránsito': 'Terminado' };
+  async function advance(e) {
+    const nx = NEXT[e.estado || 'En espera']; if (!nx || !S.db) return;
+    const patch = { estado: nx, actualizado: new Date().toISOString() };
+    if (nx === 'En Miami' && !e.f_miami) patch.f_miami = todayISO();
+    if (nx === 'Terminado' && !e.f_retiro) patch.f_retiro = todayISO();
+    try { await S.db.collection('envios').doc(e.id).set({ ...strip(e), ...patch }); toast('Ahora: ' + nx); } catch (err) { handleErr(err); }
+  }
+  function orderCard(e) {
+    const st = statusOf(e), items = itemsOf(e), idx = Math.max(0, ESTADOS.findIndex((x) => x.k === e.estado));
+    const tot = totalOf(e);
+    const head = h('div', { class: 'ohead' },
+      h('div', null, h('span', { class: 'k' }, 'Pedido realizado'), h('span', { class: 'v' }, e.f_compra ? fmtL(e.f_compra) : '—')),
+      h('div', null, h('span', { class: 'k' }, 'Total'), h('span', { class: 'v' }, usd(tot))),
+      h('div', null, h('span', { class: 'k' }, 'Envío'), h('span', { class: 'v' }, (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo') + (e.tienda ? ' · ' + e.tienda : ''))),
+      h('div', { class: 'right' }, h('span', { class: 'k' }, e.recibo ? 'Recibo # ' + e.recibo : e.pedido ? 'Pedido # ' + e.pedido : 'Sin recibo aún'), h('button', { class: 'link', type: 'button', onclick: () => openEditor(e) }, 'Ver detalles')));
+    const prog = h('div', { class: 'prog', 'aria-label': 'Progreso: ' + (e.estado || 'En espera') });
+    ['Comprado', 'En Miami', 'En tránsito', 'Retirado'].forEach((l, i) => prog.append(h('div', { class: 's' + (i < idx ? ' done' : i === idx ? ' done now' : '') }, l)));
+    const list = h('div', { class: 'oitems' });
+    const show = items.slice(0, 4);
+    show.forEach((it) => list.append(h('div', { class: 'oitem' }, thumbEl(it.img), h('div', null, h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, it.n || 'Artículo sin nombre'), it.n && /libro/i.test(e.articulos || '') ? null : null))));
+    if (!items.length) list.append(h('div', { class: 'oitem' }, thumbEl(null), h('div', null, h('div', { class: 'iname', role: 'button', tabindex: '0', onclick: () => openEditor(e) }, 'Agrega los artículos de este pedido'))));
+    if (items.length > 4) list.append(h('div', { class: 'imore' }, 'y ' + (items.length - 4) + (items.length - 4 === 1 ? ' artículo más' : ' artículos más')));
+    const acts = h('div', { class: 'oacts' });
+    const tu = trackUrl(e.tracking);
+    const nx = NEXT[e.estado || 'En espera'];
+    if (tu) acts.append(h('a', { class: 'pill y', href: tu, target: '_blank', rel: 'noopener' }, 'Rastrear paquete'));
+    if (nx) acts.append(h('button', { class: 'pill' + (tu ? '' : ' y'), type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? 'Marcar como retirado' : 'Pasar a ' + nx));
+    acts.append(h('button', { class: 'pill', type: 'button', onclick: () => openEditor(e) }, 'Editar pedido'));
+    acts.append(h('button', { class: 'pill', type: 'button', disabled: S.ro || !S.db, onclick: () => { const b = { ...strip(e) }; ['tracking', 'recibo', 'embarque', 'f_miami', 'f_retiro', 'factura_gc', 'peso_lb', 'volumen_cuft', 'f_aprox_miami'].forEach((k) => { b[k] = null; }); b.estado = 'En espera'; b.f_compra = todayISO(); openEditor(null, b); toast('Copia lista: revisa y guarda'); } }, 'Volver a pedir'));
+    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, prog, list), acts);
+    const foot = h('div', { class: 'ofoot' },
+      h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra)))),
+      h('span', null, 'Gold Coast ', h('b', null, n(e.factura_gc) != null ? usd(n(e.factura_gc)) : 'sin facturar')),
+      n(e.peso_lb) != null ? h('span', null, 'Peso ', h('b', null, n(e.peso_lb).toFixed(2) + ' lb')) : null,
+      e.tracking ? h('span', null, 'Tracking ', h('b', { class: 'mono' }, e.tracking)) : null);
+    return h('article', { class: 'order' }, head, body, foot);
+  }
+  function renderLedger() {
+    const box = $('orders'); box.textContent = '';
+    if (S.env == null) { box.append(h('p', { class: 'loading' }, 'Cargando tus pedidos…')); return; }
+    const L = visible();
+    $('ocount').textContent = L.length + (L.length === 1 ? ' pedido' : ' pedidos');
+    const lbl = { activos: 'en curso', todos: 'en total' }[S.filter] || ('· ' + S.filter);
+    $('ocount-n').textContent = lbl;
+    if (!L.length) {
+      const msg = S.env.length ? ['Nada en esta vista', 'Cambia el filtro o la búsqueda.'] : ['Aún no hay pedidos', 'Pulsa “+ Nuevo pedido” para registrar una compra, o “Restaurar” para cargar una copia de seguridad.'];
+      box.append(h('div', { class: 'panel empty' }, h('b', null, msg[0]), msg[1]));
+    }
+    L.forEach((e) => box.append(orderCard(e)));
+    const sc = L.reduce((s, e) => s + (n(e.total_compra) || 0), 0), sg = L.reduce((s, e) => s + (n(e.factura_gc) || 0), 0);
+    const ot = $('ototal'); ot.textContent = '';
+    if (L.length) ot.append(h('span', null, 'Compras ', h('b', null, usd(r2(sc)))), h('span', null, 'Gold Coast ', h('b', null, usd(r2(sg)))), h('span', null, 'Total ', h('b', null, usd(r2(sc + sg)))));
+  }
+  $('osort').addEventListener('change', (ev) => { const [k, dir] = ev.target.value.split(':'); S.sort = { k, dir }; renderLedger(); });
   $('q').addEventListener('input', (e) => { S.q = e.target.value; renderLedger(); });
 
   /* ---------- Editor ---------- */
-  const FIELDS = ['estado', 'tienda', 'pedido', 'f_compra', 'articulos', 'total_compra', 'metodo', 'tracking', 'f_aprox_miami', 'f_miami', 'recibo', 'embarque', 'peso_lb', 'volumen_cuft', 'factura_gc', 'f_retiro', 'notas'];
+  const FIELDS = ['estado', 'tienda', 'pedido', 'f_compra', 'total_compra', 'metodo', 'tracking', 'f_aprox_miami', 'f_miami', 'recibo', 'embarque', 'peso_lb', 'volumen_cuft', 'factura_gc', 'f_retiro', 'notas'];
   const NUMS = new Set(['total_compra', 'peso_lb', 'volumen_cuft', 'factura_gc']);
   const E = (k) => $('e-' + k);
   ESTADOS.forEach((s) => E('estado').append(h('option', { value: s.k }, s.k)));
   function openEditor(e, prefill) {
     S.editing = e ? e.id : null;
-    $('ed-title').textContent = e ? 'Editar envío' : 'Nuevo envío';
+    $('ed-title').textContent = e ? 'Editar pedido' : 'Nuevo pedido';
     const src = e || prefill || {};
+    ED_ITEMS = itemsOf(src).map((x) => ({ n: x.n || '', img: x.img || null }));
+    if (!ED_ITEMS.length) ED_ITEMS.push({ n: '', img: null });
+    renderEdItems();
     FIELDS.forEach((k) => { E(k).value = src[k] == null ? '' : src[k]; });
     if (!e && !prefill) { E('estado').value = 'En espera'; E('metodo').value = 'aereo'; E('f_compra').value = todayISO(); E('tienda').value = 'Amazon'; }
     if (!E('estado').value) E('estado').value = 'En espera';
@@ -615,13 +765,15 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     $('ed-del').hidden = !e; $('ed-dup').hidden = !e; $('ed-del').classList.remove('armed'); $('ed-del').textContent = 'Eliminar';
     [$('ed-save'), $('ed-del'), $('ed-dup')].forEach((b) => { b.disabled = S.ro || !S.db; });
     updateCalc();
-    $('scrim').hidden = false; setTimeout(() => E('articulos').focus(), 30);
+    $('scrim').hidden = false; setTimeout(() => { const f = document.querySelector('#e-items input[type=text]'); if (f && !f.value) f.focus(); }, 30);
   }
   function closeEditor() { $('scrim').hidden = true; S.editing = null; }
   function readForm() {
     const b = {};
     FIELDS.forEach((k) => { const v = E(k).value.trim(); b[k] = NUMS.has(k) ? n(v) : (v || null); });
     if (b.embarque) b.embarque = b.embarque.toUpperCase();
+    b.items = ED_ITEMS.map((it) => ({ n: String(it.n || '').trim(), img: it.img || null })).filter((it) => it.n || it.img);
+    b.articulos = b.items.map((it) => it.n).filter(Boolean).join('\n') || null;
     return b;
   }
   function updateCalc() {
@@ -637,6 +789,26 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   }
   FIELDS.forEach((k) => E(k).addEventListener('input', updateCalc));
   E('estado').addEventListener('change', () => { if (E('estado').value === 'Terminado' && !E('f_retiro').value) E('f_retiro').value = todayISO(); if (E('estado').value === 'En Miami' && !E('f_miami').value) E('f_miami').value = todayISO(); updateCalc(); });
+
+  let ED_ITEMS = [];
+  function renderEdItems() {
+    const box = $('e-items'); box.textContent = '';
+    ED_ITEMS.forEach((it, i) => {
+      const file = h('input', { type: 'file', accept: 'image/*', hidden: true });
+      const th = thumbEl(it.img); th.append(h('span', { class: 'cam' }, it.img ? 'Cambiar' : '+ Foto'));
+      const lab = h('label', { title: 'Agregar foto del producto', 'aria-label': 'Foto del artículo ' + (i + 1) }, th, file);
+      file.addEventListener('change', async () => {
+        const f = file.files && file.files[0]; if (!f) return;
+        try { const data = await compressImage(f); const key = 'img-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); await IMG.put(key, data); it.img = key; renderEdItems(); }
+        catch (err) { toast('No se pudo leer esa imagen'); }
+      });
+      const inp = h('input', { type: 'text', placeholder: 'Nombre del artículo', 'aria-label': 'Artículo ' + (i + 1) }); inp.value = it.n || '';
+      inp.addEventListener('input', () => { it.n = inp.value; });
+      const rm = h('button', { class: 'x', type: 'button', 'aria-label': 'Quitar artículo', onclick: () => { ED_ITEMS.splice(i, 1); if (!ED_ITEMS.length) ED_ITEMS.push({ n: '', img: null }); renderEdItems(); } }, '×');
+      box.append(h('div', { class: 'ied' }, lab, inp, rm));
+    });
+  }
+  $('e-additem').addEventListener('click', () => { ED_ITEMS.push({ n: '', img: null }); renderEdItems(); const ins = document.querySelectorAll('#e-items input[type=text]'); if (ins.length) ins[ins.length - 1].focus(); });
   $('new').addEventListener('click', () => openEditor(null));
   $('ed-x').addEventListener('click', closeEditor); $('ed-cancel').addEventListener('click', closeEditor);
   $('scrim').addEventListener('click', (ev) => { if (ev.target === $('scrim')) closeEditor(); });
@@ -646,13 +818,13 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   async function save() {
     if (!S.db) return;
     const b = readForm();
-    if (!b.articulos && !b.tracking) { E('articulos').focus(); toast('Escribe al menos los artículos o el tracking'); return; }
+    if (!b.items.length && !b.tracking) { const f = document.querySelector('#e-items input[type=text]'); if (f) f.focus(); toast('Escribe al menos un artículo o el tracking'); return; }
     b.actualizado = new Date().toISOString();
     const btn = $('ed-save'); btn.disabled = true;
     try {
       if (S.editing) { const cur = (S.env || []).find((x) => x.id === S.editing) || {}; await S.db.collection('envios').doc(S.editing).set({ ...strip(cur), ...b }); }
       else { b.creado = new Date().toISOString(); await S.db.collection('envios').add(b); }
-      toast(S.editing ? 'Cambios guardados' : 'Envío registrado'); closeEditor();
+      toast(S.editing ? 'Cambios guardados' : 'Pedido registrado'); closeEditor();
     } catch (err) { handleErr(err); }
     btn.disabled = false;
   }
@@ -660,7 +832,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
   $('ed-del').addEventListener('click', async () => {
     const b = $('ed-del');
     if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = '¿Eliminar? Pulsa otra vez'; return; }
-    try { await S.db.collection('envios').doc(S.editing).delete(); toast('Envío eliminado'); closeEditor(); } catch (err) { handleErr(err); }
+    try { const gone = (S.env || []).find((x) => x.id === S.editing); await S.db.collection('envios').doc(S.editing).delete(); if (gone) { const used = new Set((S.env || []).filter((x) => x.id !== gone.id).flatMap((x) => itemsOf(x).map((i) => i.img))); itemsOf(gone).forEach((i) => { if (i.img && !/^https?:/.test(i.img) && !used.has(i.img)) IMG.del(i.img); }); } toast('Pedido eliminado'); closeEditor(); } catch (err) { handleErr(err); }
   });
   const strip = (x) => { const { id, ...rest } = x; return rest; };
   function handleErr(e) {
@@ -671,7 +843,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
 
   /* ---------- Backup / restore ---------- */
   $('backup').addEventListener('click', async () => {
-    const json = JSON.stringify({ app: 'control-importaciones', version: 1, exportado: new Date().toISOString(), datos: STORE.dump() }, null, 2);
+    const json = JSON.stringify({ app: 'control-importaciones', version: 2, exportado: new Date().toISOString(), datos: STORE.dump(), imagenes: await IMG.all() });
     const name = 'importaciones-' + todayISO() + '.json';
     try {
       const file = new File([json], name, { type: 'application/json' });
@@ -690,7 +862,8 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
       const nEnv = Object.keys(d.envios).length;
       const cur = Object.keys(STORE.dump().envios || {}).length;
       if (cur && !confirmBox('Esto reemplaza tus ' + cur + ' envíos actuales por los ' + nEnv + ' de la copia. Pulsa “Restaurar” otra vez para confirmar.')) return;
-      STORE.load(d); toast(nEnv + ' envíos restaurados');
+      if (obj.imagenes && typeof obj.imagenes === 'object') { for (const [k, v] of Object.entries(obj.imagenes)) { if (typeof v === 'string' && v.startsWith('data:image/')) await IMG.put(k, v); } }
+      STORE.load(d); toast(nEnv + ' pedidos restaurados');
     } catch (err) { toast('Ese archivo no es una copia válida'); }
   });
   let armedRestore = 0;
