@@ -101,12 +101,39 @@ async function grab(url, ua) {
   } finally { clearTimeout(to); }
 }
 
+async function resolveShort(start) {
+  let cur = start; const hops = [];
+  for (let i = 0; i < 6; i++) {
+    const ac = new AbortController(); const to = setTimeout(() => ac.abort(), 7000);
+    let res;
+    try { res = await fetch(cur, { redirect: 'manual', signal: ac.signal, headers: { 'user-agent': UAS[0], accept: 'text/html,*/*' } }); }
+    catch (e) { hops.push({ cur, err: String(e) }); break; } finally { clearTimeout(to); }
+    const loc = res.headers.get('location');
+    hops.push({ cur, status: res.status, loc });
+    if (loc && res.status >= 300 && res.status < 400) { cur = new URL(loc, cur).href; if (amazonAsin(cur)) return { url: cur, hops }; continue; }
+    const html = (await res.text()).slice(0, 400000);
+    const m = html.match(/https?:\/\/(?:www\.)?amazon\.[a-z.]+\/[^"'\s<>]*?\/(?:dp|gp\/product|gp\/aw\/d)\/[A-Z0-9]{10}[^"'\s<>]*/i)
+      || html.match(/(?:url=|href=")(https?:\/\/[^"'\s<>]+)/i);
+    if (m) { const found = decode(m[1] || m[0]); return { url: found, hops, from: 'html' }; }
+    hops.push({ snippet: html.slice(0, 300) });
+    break;
+  }
+  return { url: amazonAsin(cur) ? cur : null, hops };
+}
+
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-allow-headers': '*' } });
   const target = new URL(req.url).searchParams.get('url');
   let url;
   try { url = new URL(target); if (!/^https?:$/.test(url.protocol)) throw new Error(); } catch { return json({ error: 'Enlace no válido' }, 400, false); }
 
+  const debug = new URL(req.url).searchParams.get('debug') === '1';
+  // Short links (a.co, amzn.to, amzn.eu…): resolve them by hand first.
+  if (/^(a\.co|amzn\.(to|eu|asia)|amzn\.com)$/i.test(url.hostname)) {
+    const resolved = await resolveShort(url.href);
+    if (debug) return json({ debug: resolved }, 200, false);
+    if (resolved.url) url = new URL(resolved.url);
+  }
   let last = null;
   for (const ua of UAS) {
     try {
