@@ -805,6 +805,10 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
       return m ? m[1].toUpperCase() : null;
     } catch (e) { return null; }
   };
+  const slugName = (u) => {
+    try { const url = new URL(u); if (!/(^|\.)amazon\./i.test(url.hostname)) return null; const m = url.pathname.match(/^\/([^/]+)\/(?:dp|gp\/product)\//i); if (!m || /^(dp|gp)$/i.test(m[1])) return null; return decodeURIComponent(m[1]).replace(/-/g, ' ').trim() || null; } catch (e) { return null; }
+  };
+  const BAD_TITLE = /^(product gallery|amazon(\.[a-z.]+)?|robot check|page not found|página no encontrada|access denied|just a moment.*|sorry.*)$/i;
   const asinImg = (asin) => 'https://images-na.ssl-images-amazon.com/images/P/' + asin + '.01.LZZZZZZZ.jpg';
   const probeImg = (src) => new Promise((res) => { const im = new Image(); const to = setTimeout(() => res(false), 8000); im.onload = () => { clearTimeout(to); res(im.naturalWidth > 10 && im.naturalHeight > 10); }; im.onerror = () => { clearTimeout(to); res(false); }; im.src = src; });
   const cleanTitle = (t) => {
@@ -821,8 +825,9 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
     let asin = amazonAsin(url), img = null, title = null, finalUrl = url;
     let meta = null;
     try {
-      const r = await fetch('https://api.microlink.io/?url=' + encodeURIComponent(url));
-      const j = await r.json();
+      const ac = new AbortController(); const to = setTimeout(() => ac.abort(), 15000);
+      const r = await fetch('https://api.microlink.io/?url=' + encodeURIComponent(url), { signal: ac.signal });
+      const j = await r.json(); clearTimeout(to);
       if (j && j.status === 'success' && j.data) meta = j.data;
     } catch (e) { /* service unreachable: fall back to what the link says */ }
     if (meta) {
@@ -830,6 +835,7 @@ tfoot td { padding: 10px; border-top: 2px solid var(--ink); font-weight: 700; ba
       if (!asin) asin = amazonAsin(finalUrl);
       title = cleanTitle(meta.title);
     }
+    if (!title || BAD_TITLE.test(title)) title = slugName(finalUrl) || slugName(url) || null;
     if (asin && await probeImg(asinImg(asin))) img = asinImg(asin);
     if (!img && meta && meta.image && meta.image.url && !/prime_logo|\/logos?\//i.test(meta.image.url) && await probeImg(meta.image.url)) img = meta.image.url;
     if (!img && !title) return { error: asin ? 'No encontré la imagen de ese producto' : 'No pude leer ese enlace. Revisa tu conexión o pega otro.' };
