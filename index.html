@@ -515,6 +515,18 @@ details.auto > .fields { padding: 0 14px 14px; }
 .pf.ok { background: #e3f5ec; }
 .pf.ok .c { color: #12805c; }
 @media (max-width: 520px) { .pf { grid-template-columns: minmax(0, 1fr) auto; } .pf .k { grid-column: 1 / -1; } }
+.alerts { gap: 8px; }
+.todo-h { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.todo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; }
+.tcard { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; background: #fff; border: 0; border-left: 4px solid var(--c); border-radius: 14px; padding: 12px 14px; box-shadow: var(--sh-1); cursor: pointer; font: inherit; color: var(--ink); }
+.tcard:hover { box-shadow: var(--sh-2); }
+.tcard .ti { font-size: 20px; }
+.tcard .tt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tcard .tt b { font-size: 14.5px; }
+.tcard .tt span { font-size: 12.5px; color: var(--muted); }
+.tcard .tn { font-size: 20px; font-weight: 800; color: var(--c); }
+.ofoot .landed b { color: var(--ink); }
+@media (max-width: 680px) { .todo { grid-template-columns: 1fr 1fr; gap: 8px; } .tcard { grid-template-columns: minmax(0, 1fr) auto; padding: 9px 10px; border-radius: 12px; } .tcard .ti { display: none; } .tcard .tt b { font-size: 13.5px; } .tcard .tt span { font-size: 11.5px; } .tcard .tn { font-size: 18px; } }
 </style>
 </head>
 <body>
@@ -754,12 +766,13 @@ details.auto > .fields { padding: 0 14px 14px; }
 <script>
 (() => {
   const ESTADOS = [
-    { k: 'Por cobrar', c: 'var(--st-pay)', d: 'Pagado en la tienda, falta que la tienda lo cobre y lo envíe' },
-    { k: 'En espera', c: 'var(--st-wait)', d: 'Cobrado y enviado por la tienda, aún no llega a Miami' },
-    { k: 'En Miami', c: 'var(--st-mia)', d: 'En el almacén de Gold Coast' },
-    { k: 'En tránsito', c: 'var(--st-tr)', d: 'Embarcado hacia Caracas' },
-    { k: 'Terminado', c: 'var(--st-done)', d: 'Retirado y pagado' },
+    { k: 'Por cobrar', l: 'Por cobrar', c: 'var(--st-pay)', d: 'Pagado en la tienda, falta que la tienda lo cobre y lo envíe' },
+    { k: 'En espera', l: 'Rumbo a Miami', c: 'var(--st-wait)', d: 'Cobrado y enviado por la tienda, aún no llega a Miami' },
+    { k: 'En Miami', l: 'En Miami', c: 'var(--st-mia)', d: 'En el almacén de Gold Coast' },
+    { k: 'En tránsito', l: 'Rumbo a Caracas', c: 'var(--st-tr)', d: 'Embarcado hacia Caracas' },
+    { k: 'Terminado', l: 'Retirado', c: 'var(--st-done)', d: 'Retirado y pagado' },
   ];
+  const stLabel = (k) => (ESTADOS.find((e) => e.k === k) || { l: k }).l;
   const stColor = (k) => (ESTADOS.find((e) => e.k === k) || ESTADOS[0]).c;
   const DEF_CFG = { tax: 7, air_rate: 4.85, air_min: 10, divisor: 166, vol_min: 1, sea_rate: null, sea_min: null, cap: 100, cash: 0, dias_retiro: 5 };
   const S = { env: null, tasks: null, quotes: null, cfg: { ...DEF_CFG }, filter: 'activos', q: '', sort: { k: 'f_compra', dir: 'desc' }, db: null, ro: false, editing: null };
@@ -821,18 +834,17 @@ details.auto > .fields { padding: 0 14px 14px; }
   }
   function renderAlerts() {
     const box = $('alerts'); box.textContent = '';
-    const t = todayISO(), out = [];
-    (S.env || []).forEach((e) => {
-      const name = firstLine(e.articulos);
-      if (e.estado === 'En espera' && e.f_aprox_miami && e.f_aprox_miami < t) out.push(['Revisar', 'var(--warn)', name, 'debía llegar a Miami el ' + fmtD(e.f_aprox_miami) + '. Revisa el tracking con la tienda.', e]);
-      if (e.estado === 'En Miami' && n(e.factura_gc) == null && e.f_miami && days(e.f_miami, t) >= 3) out.push(['Sin factura', 'var(--warn)', name, 'lleva ' + days(e.f_miami, t) + ' días en Miami sin factura de Gold Coast.', e]);
-      const est = retiroEst(e);
-      if (e.estado !== 'Terminado' && est && est <= t) out.push(['Listo para retirar', 'var(--ok)', name, 'por el embarque ' + e.embarque + ' debería estar en Las Mercedes desde el ' + fmtD(est) + '. Confirma por teléfono antes de ir.', e]);
-      else if (e.estado !== 'Terminado' && est) out.push(['Retiro estimado', 'var(--st-tr)', name, fmtD(est) + ' (embarque ' + e.embarque + ').', e]);
-    });
-    out.slice(0, 6).forEach(([k, c, name, msg, e]) => {
-      box.append(h('div', { class: 'alert', style: '--ac:' + c }, h('span', { class: 'k' }, k), h('span', null, h('b', null, name), ' ' + msg), h('button', { class: 'btn small', type: 'button', onclick: () => openEditor(e) }, 'Abrir')));
-    });
+    const L = S.env || [];
+    const pick = (k) => () => { S.filter = k; renderChips(); renderLedger(); document.getElementById('chips').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    const R = L.filter(ready), cash = R.reduce((s, e) => s + (n(e.factura_gc) || 0), 0);
+    const cards = [
+      [L.filter(needsPre).length, '📮', 'Prealertar', (k) => k + (k === 1 ? ' paquete rumbo a Miami' : ' paquetes rumbo a Miami'), 'prealerta', '#0e7c86'],
+      [R.length, '🏁', 'Por retirar', (k) => k + (k === 1 ? ' paquete' : ' paquetes') + (cash ? ' · lleva ' + usd(cash) : ''), 'retirar', 'var(--ok)'],
+      [L.filter(needsItems).length, '✏️', 'Completar', (k) => k + (k === 1 ? ' pedido' : ' pedidos') + ' sin enlaces o precios', 'completar', 'var(--st-pay)'],
+      [L.filter(needsCheck).length, '⚠️', 'Revisar', (k) => k + (k === 1 ? ' retrasado o sin factura' : ' retrasados o sin factura'), 'revisar', 'var(--warn)'],
+    ].filter(([k]) => k > 0);
+    box.hidden = !cards.length; if (!cards.length) return;
+    box.append(h('div', { class: 'todo-h' }, 'Para hacer'), h('div', { class: 'todo' }, ...cards.map(([k, ic, t, sub, f, c]) => h('button', { class: 'tcard', type: 'button', style: '--c:' + c, onclick: pick(f) }, h('span', { class: 'ti' }, ic), h('span', { class: 'tt' }, h('b', null, t), h('span', null, sub(k))), h('span', { class: 'tn' }, String(k))))));
   }
   const firstLine = (s) => { const t = String(s || 'Sin artículos').replace(/\s*\n\s*/g, ' ').trim(); return t.length > 60 ? t.slice(0, 58) + '…' : t; };
 
@@ -902,10 +914,16 @@ details.auto > .fields { padding: 0 14px 14px; }
   ];
   // Shipped by the store, not yet at Gold Coast, and no pre-alert made yet.
   const needsPre = (e) => e.estado === 'En espera' && !e.prealerta && !e.recibo;
+  const ready = (e) => e.estado === 'En tránsito' && retiroEst(e) && retiroEst(e) <= todayISO();
+  const needsItems = (e) => e.estado === 'Por cobrar' && (!itemsOf(e).some((x) => x.url) || itemsOf(e).some((x) => x.url && n(x.p) == null));
+  const needsCheck = (e) => { const t = todayISO(); return (e.estado === 'En espera' && e.f_aprox_miami && e.f_aprox_miami < t) || (e.estado === 'En Miami' && n(e.factura_gc) == null && e.f_miami && days(e.f_miami, t) >= 3); };
   function visible() {
     let L = (S.env || []).slice();
     if (S.filter === 'activos') L = L.filter((e) => e.estado !== 'Terminado');
     else if (S.filter === 'prealerta') L = L.filter(needsPre);
+    else if (S.filter === 'retirar') L = L.filter(ready);
+    else if (S.filter === 'completar') L = L.filter(needsItems);
+    else if (S.filter === 'revisar') L = L.filter(needsCheck);
     else if (S.filter !== 'todos') L = L.filter((e) => e.estado === S.filter);
     const q = S.q.trim().toLowerCase();
     if (q) L = L.filter((e) => [itemsOf(e).map((i) => i.n).join(' '), e.articulos, e.tracking, e.recibo, e.tienda, e.embarque, e.pedido, e.notas].join(' ').toLowerCase().includes(q));
@@ -917,7 +935,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const box = $('chips'); box.textContent = '';
     const L = S.env || [];
     const pre = L.filter(needsPre).length;
-    const opts = [['activos', 'En curso', L.filter((e) => e.estado !== 'Terminado').length, 'var(--ink)'], ...(pre ? [['prealerta', 'Por prealertar', pre, '#0e7c86']] : []), ...ESTADOS.map((e) => [e.k, e.k, L.filter((x) => x.estado === e.k).length, e.c]), ['todos', 'Todos', L.length, 'var(--muted)']];
+    const opts = [['activos', 'En curso', L.filter((e) => e.estado !== 'Terminado').length, 'var(--ink)'], ...(pre ? [['prealerta', 'Por prealertar', pre, '#0e7c86']] : []), ...ESTADOS.flatMap((e) => { const row = [e.k, e.l, L.filter((x) => x.estado === e.k).length, e.c]; return e.k === 'Terminado' && L.some(ready) ? [['retirar', 'Por retirar', L.filter(ready).length, 'var(--ok)'], row] : [row]; }), ['todos', 'Todos', L.length, 'var(--muted)']];
     opts.forEach(([k, l, c, col]) => box.append(h('button', { class: 'chip', type: 'button', 'aria-pressed': S.filter === k, style: '--c:' + col, onclick: () => { S.filter = k; renderChips(); renderLedger(); } }, h('i'), l, h('b', null, String(c)))));
   }
   function statusOf(e) {
@@ -945,7 +963,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const patch = { estado: nx, actualizado: new Date().toISOString() };
     if (nx === 'En Miami' && !e.f_miami) patch.f_miami = todayISO();
     if (nx === 'Terminado' && !e.f_retiro) patch.f_retiro = todayISO();
-    try { await S.db.collection('envios').doc(e.id).set({ ...strip(e), ...patch }); toast('Ahora: ' + nx); } catch (err) { handleErr(err); }
+    try { await S.db.collection('envios').doc(e.id).set({ ...strip(e), ...patch }); toast('Ahora: ' + stLabel(nx)); } catch (err) { handleErr(err); }
   }
   function orderCard(e) {
     const st = statusOf(e), items = itemsOf(e), idx = Math.max(0, ESTADOS.findIndex((x) => x.k === e.estado));
@@ -976,7 +994,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const tu = trackUrl(e.tracking);
     const nx = NEXT[e.estado || 'En espera'];
     if (tu) acts.append(h('a', { class: 'pill', href: tu, target: '_blank', rel: 'noopener' }, 'Rastrear paquete'));
-    if (nx) acts.append(h('button', { class: 'pill' + (nx === 'Terminado' ? ' g' : ''), type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? '✓ Marcar como retirado' : 'Pasar a ' + nx));
+    if (nx) acts.append(h('button', { class: 'pill' + (nx === 'Terminado' ? ' g' : ''), type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? '✓ Marcar como retirado' : 'Pasar a ' + stLabel(nx)));
     acts.append(h('button', { class: 'pill', type: 'button', onclick: () => openEditor(e) }, 'Ver o editar pedido'));
     if (acts.firstChild && !acts.firstChild.classList.contains('g')) acts.firstChild.classList.add('y');
     const parent = e.parte_de ? (S.env || []).find((x) => x.id === e.parte_de) : null;
@@ -989,6 +1007,7 @@ details.auto > .fields { padding: 0 14px 14px; }
       h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra))), e.cobro === 'pendiente' ? h('i', { class: 'cobro pend' }, 'pendiente de cobro') : n(e.cobro_binance) != null ? h('i', { class: 'cobro ok', title: 'Cobro confirmado por Binance' + (e.cobro_fecha ? ' el ' + fmtL(e.cobro_fecha) : '') }, '✓ cobrado') : null),
       n(e.factura_gc) != null ? h('span', null, 'Gold Coast ', h('b', null, usd(n(e.factura_gc)))) : (() => { const g = gcEstimate(e); return g ? h('span', { class: 'gcest', title: g.why }, 'Gold Coast aprox. ', h('b', null, '≈ ' + usd(g.usd))) : h('span', null, 'Gold Coast ', h('b', null, 'sin facturar')); })(),
       n(e.peso_lb) != null ? h('span', null, 'Peso ', h('b', null, n(e.peso_lb).toFixed(2) + ' lb')) : null,
+      (() => { const buy = n(e.total_compra); if (buy == null) return null; const g = n(e.factura_gc) ?? (gcEstimate(e) || {}).usd; return g != null ? h('span', { class: 'landed' }, 'Total puesto en Caracas ', h('b', null, (n(e.factura_gc) == null ? '≈ ' : '') + usd(Math.round((buy + g) * 100) / 100))) : null; })(),
       e.tracking ? h('span', null, 'Tracking ', h('b', { class: 'mono' }, e.tracking)) : null);
     const stc = (ESTADOS.find((x) => x.k === (e.estado || 'En espera')) || ESTADOS[0]).c;
     return h('article', { class: 'order', style: '--sc:' + stc }, head, body, foot);
@@ -1044,7 +1063,7 @@ details.auto > .fields { padding: 0 14px 14px; }
   const FIELDS = ['estado', 'tienda', 'pedido', 'f_compra', 'total_compra', 'metodo', 'tracking', 'f_aprox_miami', 'f_miami', 'recibo', 'embarque', 'peso_lb', 'volumen_cuft', 'factura_gc', 'f_retiro', 'notas'];
   const NUMS = new Set(['total_compra', 'peso_lb', 'volumen_cuft', 'factura_gc']);
   const E = (k) => $('e-' + k);
-  ESTADOS.forEach((s) => E('estado').append(h('option', { value: s.k }, s.k)));
+  ESTADOS.forEach((s) => E('estado').append(h('option', { value: s.k }, s.l)));
   function openEditor(e, prefill) {
     S.editing = e ? e.id : null;
     $('ed-title').textContent = e ? 'Editar pedido' : 'Nuevo pedido';

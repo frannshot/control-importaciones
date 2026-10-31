@@ -150,7 +150,7 @@ export function applyAmazon(data, raws, initIso) {
             }
           }
         }
-        if (id && !backfill && fresh(p.date)) msgs.push({ title: '🚚 Cobrado y enviado: ' + what(moved || env[id].items, p.label), body: '$' + p.total.toFixed(2) + ' · Ahora: En espera' + (p.llega ? ' · Llega a Miami aprox. el ' + day(p.llega) : '') + ' · Abre la app para ver el tracking y hacer la prealerta', tag: 'am-' + id });
+        if (id && !backfill && fresh(p.date)) msgs.push({ title: '🚚 Cobrado y enviado: ' + what(moved || env[id].items, p.label), body: '$' + p.total.toFixed(2) + ' · Ahora: rumbo a Miami' + (p.llega ? ' · Llega a Miami aprox. el ' + day(p.llega) : '') + ' · Abre la app para ver el tracking y hacer la prealerta', tag: 'am-' + id });
       }
       st.applied[r.id] = 1;
     } else if (r.kind === 'binance') {
