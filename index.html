@@ -479,6 +479,9 @@ details.auto > .fields { padding: 0 14px 14px; }
 .dimg img { width: 100%; height: auto; display: block; border-radius: 8px; }
 .ofoot .gcest { color: var(--muted); }
 .ofoot .gcest b { color: #8a6a12; background: #fff6d6; border-radius: 6px; padding: 1px 6px; font-weight: 700; }
+.ofoot .cobro { font-style: normal; font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+.ofoot .cobro.pend { color: #8a5a00; background: #fff1d6; }
+.ofoot .cobro.ok { color: #12805c; background: #e3f5ec; }
 </style>
 </head>
 <body>
@@ -880,6 +883,8 @@ details.auto > .fields { padding: 0 14px 14px; }
       return { t: 'En el almacén de Miami', s: e.f_miami ? 'Recibido el ' + fmtL(e.f_miami) : 'Esperando embarque', c: 'go' };
     }
     if (e.f_aprox_miami && e.f_aprox_miami < t0) return { t: 'Retrasado', s: 'Debía llegar a Miami el ' + fmtL(e.f_aprox_miami) + '. Revisa el tracking.', c: 'warn' };
+    if (e.cobro === 'pendiente') return { t: 'Pedido confirmado', s: 'Amazon te cobra cuando lo envíe' + (e.f_aprox_miami ? ' · llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : ''), c: 'go' };
+    if (e.f_envio_tienda) return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Enviado por la tienda', s: 'Enviado por ' + (e.tienda || 'la tienda') + ' el ' + fmtL(e.f_envio_tienda), c: 'go' };
     return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Esperando envío de la tienda', s: e.f_compra ? 'Comprado el ' + fmtL(e.f_compra) : '', c: 'go' };
   }
   const NEXT = { 'En espera': 'En Miami', 'En Miami': 'En tránsito', 'En tránsito': 'Terminado' };
@@ -924,7 +929,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (acts.firstChild && !acts.firstChild.classList.contains('g')) acts.firstChild.classList.add('y');
     const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, car), acts);
     const foot = h('div', { class: 'ofoot' },
-      h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra)))),
+      h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra))), e.cobro === 'pendiente' ? h('i', { class: 'cobro pend' }, 'pendiente de cobro') : n(e.cobro_binance) != null ? h('i', { class: 'cobro ok', title: 'Cobro confirmado por Binance' + (e.cobro_fecha ? ' el ' + fmtL(e.cobro_fecha) : '') }, '✓ cobrado') : null),
       n(e.factura_gc) != null ? h('span', null, 'Gold Coast ', h('b', null, usd(n(e.factura_gc)))) : (() => { const g = gcEstimate(e); return g ? h('span', { class: 'gcest', title: g.why }, 'Gold Coast aprox. ', h('b', null, '≈ ' + usd(g.usd))) : h('span', null, 'Gold Coast ', h('b', null, 'sin facturar')); })(),
       n(e.peso_lb) != null ? h('span', null, 'Peso ', h('b', null, n(e.peso_lb).toFixed(2) + ' lb')) : null,
       e.tracking ? h('span', null, 'Tracking ', h('b', { class: 'mono' }, e.tracking)) : null);
@@ -1422,7 +1427,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const buy = n(e.total_compra), gcEst = n(e.factura_gc) == null ? gcEstimate(e) : null, gc = n(e.factura_gc) ?? (gcEst ? gcEst.usd : null);
     c.fillStyle = '#fff'; c.beginPath(); c.roundRect(P, y, W - P * 2, 100, 12); c.fill();
     const row = (k, v, yy, big) => { c.fillStyle = big ? '#1f2933' : '#6b7380'; c.font = F(big ? 700 : 400, big ? 16 : 14); c.fillText(k, P + 16, yy); c.textAlign = 'right'; c.fillStyle = '#1f2933'; c.font = F(700, big ? 18 : 14); c.fillText(v, W - P - 16, yy); c.textAlign = 'left'; };
-    row('Compra en la tienda', usd(buy), y + 28); row(gcEst ? 'Flete Gold Coast (aprox. ' + gcEst.lb.toFixed(1) + ' lb)' : 'Flete Gold Coast', gc != null ? (gcEst ? '≈ ' : '') + usd(gc) : 'sin facturar', y + 52);
+    row(e.cobro === 'pendiente' ? 'Compra en la tienda (pendiente de cobro)' : n(e.cobro_binance) != null ? 'Compra en la tienda (cobrada ✓ Binance)' : 'Compra en la tienda', usd(buy), y + 28); row(gcEst ? 'Flete Gold Coast (aprox. ' + gcEst.lb.toFixed(1) + ' lb)' : 'Flete Gold Coast', gc != null ? (gcEst ? '≈ ' : '') + usd(gc) : 'sin facturar', y + 52);
     c.strokeStyle = '#efeae1'; c.lineWidth = 1; c.beginPath(); c.moveTo(P + 16, y + 66); c.lineTo(W - P - 16, y + 66); c.stroke();
     row(gcEst ? 'Costo total aprox.' : 'Costo total', buy != null ? (gcEst ? '≈ ' : '') + usd(buy + (gc || 0)) : '—', y + 88, true);
     y += 120;

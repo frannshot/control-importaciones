@@ -5,6 +5,7 @@
 // GET -> { docs }            GET ?raw=1 -> { raw }   (both need the key)
 import { authorized, json, cors, store, loadData, saveData, applyDocs, notify, docMessages } from './lib.mjs';
 import { parseEmail } from './gc-parse.mjs';
+import { applyAmazon } from './amazon.mjs';
 
 const RAW_MAX = 60;
 const kindOf = (em) => {
@@ -15,7 +16,6 @@ const kindOf = (em) => {
   return em.from ? 'otro' : 'goldcoast';
 };
 const SECRET = /(c[oó]digo|code|verif|otp|contrase|password|inicio de sesi|login|sign[- ]?in|2fa|autenticaci|authenticat)/i;
-const strip = (html) => String(html || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<script[\s\S]*?<\/script>/gi, ' ');
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -42,27 +42,32 @@ export default async (req) => {
       }
     } else if (kind === 'amazon' || kind === 'binance') {
       if (SECRET.test(em.subject || '')) continue; // never keep security codes
+      if (kind === 'binance' && !/card\s*-\s*transaction/i.test(em.subject || '')) continue; // only card payments
+      if (kind === 'amazon' && !/^\s*(pedido|enviad|ordered|shipped|your amazon\.com order)/i.test(em.subject || '')) continue;
       raw = raw || (await s.get('raw', { type: 'json' })) || {};
       raw[kind + ':' + em.id] = { kind, id: em.id, from: em.from, to: em.to || null, subject: em.subject || '', date: em.date || null,
-        body: String(em.body || '').slice(0, 30000), html: kind === 'amazon' ? strip(em.html).slice(0, 200000) : null };
+        body: String(em.body || '').slice(0, 12000) };
       kept++;
     }
   }
-  if (raw) {
-    const keys = Object.keys(raw).sort((a, b) => String(raw[b].date).localeCompare(String(raw[a].date)));
-    keys.slice(RAW_MAX).forEach((k) => delete raw[k]);
-    await s.setJSON('raw', raw);
-  }
+  raw = raw || (await s.get('raw', { type: 'json' })) || {};
+  // keep only what the readers use (drops anything stored before these rules)
+  for (const [k, r] of Object.entries(raw)) { if ((r.kind === 'binance' && !/card\s*-\s*transaction/i.test(r.subject)) || r.html) { if (r.kind === 'binance' && !/card\s*-\s*transaction/i.test(r.subject)) delete raw[k]; else delete r.html; kept++; } }
+  const keys = Object.keys(raw).sort((a, b) => String(raw[b].date).localeCompare(String(raw[a].date)));
+  keys.slice(RAW_MAX).forEach((k) => delete raw[k]);
+  if (kept) await s.setJSON('raw', raw);
+
   let res = { changed: 0, created: 0, events: [] }, pushed = 0;
-  if (added) {
-    await s.setJSON('docs', docs);
-    const data = await loadData(s);
-    if (Object.keys(data.envios).length) {
-      res = applyDocs(data, Object.values(docs));
-      const msgs = docMessages(data, res.events);
-      if (res.changed || res.created || msgs.length) await saveData(s, data);
-      pushed = await notify(s, msgs);
-    }
+  if (added) await s.setJSON('docs', docs);
+  const data = await loadData(s);
+  const msgs = [];
+  if (Object.keys(data.envios).length) {
+    const before = JSON.stringify(data);
+    if (added) { res = applyDocs(data, Object.values(docs)); msgs.push(...docMessages(data, res.events)); }
+    data.meta.amz = data.meta.amz || { applied: {}, init: '2026-10-31T04:00:00.000Z' }; // older e-mails only fill in shipments already in the app
+    msgs.push(...applyAmazon(data, Object.values(raw), data.meta.amz.init));
+    if (JSON.stringify(data) !== before) await saveData(s, data);
+    pushed = await notify(s, msgs);
   }
   return json({ ok: true, parsed: added, kept, total: Object.keys(docs).length, changed: res.changed, created: res.created, pushed });
 };
