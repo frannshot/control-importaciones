@@ -62,7 +62,7 @@ export function applyDocs(data, docs) {
     } else {
       if (d.total != null) { b.factura_gc = d.total; b.estado_flete = 'Confirmado'; }
       if (d.embarque) b.embarque = d.embarque;
-      if ((b.estado === 'En Miami' || b.estado === 'En espera') && embarqueDate(b.embarque) && embarqueDate(b.embarque) <= todayCaracas()) b.estado = 'En tránsito';
+      if ((b.estado === 'En Miami' || b.estado === 'En espera' || b.estado === 'Por cobrar') && embarqueDate(b.embarque)) b.estado = 'En tránsito'; // invoiced with a shipment number
       if (d.cobrado != null && d.cobrado_unidad === 'LB') b.peso_lb = d.cobrado;
       if (!b.tracking && d.trackings && d.trackings[0]) b.tracking = cleanTrack(d.trackings[0]);
       if (isNew) { const nm = niceName(d.notas) || 'Paquete facturado por Gold Coast'; b.items = [{ n: nm, img: null, url: null }]; b.articulos = nm; b.notas = 'Creado automáticamente con la factura ' + d.factura + ' de Gold Coast. Completa la fecha de compra, el monto y los enlaces.'; }

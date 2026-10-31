@@ -14,7 +14,7 @@ export default async () => {
   for (const [id, b] of Object.entries(data.envios)) {
     if (b.estado === 'Terminado') continue;
     const emb = embarqueDate(b.embarque);
-    if (emb && emb <= t && (b.estado === 'En Miami' || b.estado === 'En espera')) { data.envios[id] = { ...b, estado: 'En tránsito', actualizado: new Date().toISOString() }; moved++; }
+    if (emb && (b.estado === 'En Miami' || b.estado === 'En espera')) { data.envios[id] = { ...b, estado: 'En tránsito', actualizado: new Date().toISOString() }; moved++; }
     msgs.push(...stepMessages(data, id));
   }
   await saveData(s, data);

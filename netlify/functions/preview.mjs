@@ -91,7 +91,7 @@ export function extractAmazon(html) {
     const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     if (t) title = decode(t[1]).replace(/^Amazon\.[a-z.]+\s*:\s*/i, '').replace(/\s*:\s*Amazon\.[a-z.]+.*$/i, '');
   }
-  return { image: image ? decode(image) : null, title: title || null, weight_lb: weightLb(html), price: priceUsd(html) };
+  return { image: image ? decode(image) : null, title: title || null, weight_lb: weightLb(html), price: priceUsd(html), book: /ISBN-1[03]|>\s*(Hardcover|Paperback|Tapa dura|Tapa blanda|Pasta dura|Pasta blanda)\s*</i.test(html) };
 }
 
 export function extractGeneric(html, base) {
@@ -165,7 +165,7 @@ export default async (req) => {
       if (asin || /(^|\.)amazon\./i.test(new URL(r.finalUrl).hostname)) {
         if (looksBlocked(r.html)) continue;
         const a = extractAmazon(r.html);
-        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image, weight_lb: a.weight_lb, price: a.price });
+        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image, weight_lb: a.weight_lb, price: a.price, book: a.book });
         continue;
       }
       const g = extractGeneric(r.html, r.finalUrl);
