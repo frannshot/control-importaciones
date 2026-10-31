@@ -1458,7 +1458,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const rows = [
       ['Purchase date', m + '/' + d + '/' + y],
       ['Store name', e.tienda || 'Amazon'],
-      ['Purchase content', L.length ? (L.length === 1 ? '1 libro: ' : L.length + ' libros: ').replace(/libros?/, BOOKS(L) ? '$&' : (L.length === 1 ? 'artículo' : 'artículos')) + L.join('; ') : (e.articulos || '')],
+      ['Purchase content', contentLabel(e)],
       ['Tracking number', e.tracking],
       ['Merchandise Amount', n(e.total_compra) != null ? n(e.total_compra).toFixed(2).replace('.', ',') : ''],
     ];
@@ -1469,7 +1469,14 @@ details.auto > .fields { padding: 0 14px 14px; }
         h('a', { class: 'pill', href: 'https://app.stephytracking.com/goldcoast/1/prealerts', target: '_blank', rel: 'noopener' }, 'Abrir prealertas de Gold Coast'),
         h('button', { class: 'pill g', type: 'button', onclick: async () => { await S.db.collection('envios').doc(e.id).set({ ...strip(e), prealerta: todayISO(), actualizado: new Date().toISOString() }); toast('Prealerta marcada'); } }, '✓ Ya la hice')));
   }
-  const BOOKS = (L) => L.every((x) => /libro|book|novela|edici[oó]n|tapa (dura|blanda)|spanish edition|paperback|hardcover/i.test(x));
+  // Short and general, as Gold Coast wants it: "2 libros", "1 libro y 2 artículos".
+  const IS_BOOK = /libro|book|novela|edici[oó]n|tapa (dura|blanda)|spanish edition|paperback|hardcover/i;
+  function contentLabel(e) {
+    const L = itemsOf(e).map((x) => x.n).filter(Boolean);
+    if (!L.length) { const k = n(e.n_articulos); return k ? k + (/libro/i.test(e.articulos || '') ? (k === 1 ? ' libro' : ' libros') : (k === 1 ? ' artículo' : ' artículos')) : (e.articulos || ''); }
+    const b = L.filter((x) => IS_BOOK.test(x)).length, o = L.length - b;
+    return [b ? b + (b === 1 ? ' libro' : ' libros') : null, o ? o + (o === 1 ? ' artículo' : ' artículos') : null].filter(Boolean).join(' y ');
+  }
 
   /* ---------- Gold Coast estimate (before the invoice arrives) ---------- */
   // Uses the weight on the Gold Coast receipt when there is one; otherwise the Amazon weight of each item
