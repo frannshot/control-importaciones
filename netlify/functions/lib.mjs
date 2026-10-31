@@ -34,6 +34,11 @@ function findEnv(d, envios) {
   const list = Object.entries(envios);
   let e = list.find(([, x]) => x.recibo && String(x.recibo).replace(/-\d+$/, '') === d.recibo);
   if (!e && d.trackings && d.trackings.length) e = list.find(([, x]) => x.tracking && d.trackings.some((t) => trackMatch(t, x.tracking)));
+  // Gold Coast's "declared value" is what the store charged: it finds the package when the tracking is not known yet.
+  if (!e && d.tipo === 'recibo' && d.valor_declarado != null) {
+    const c = list.filter(([, x]) => !x.recibo && !x.tracking && (x.estado === 'En espera' || x.estado === 'Por cobrar') && x.total_compra != null && Math.abs(Number(x.total_compra) - Number(d.valor_declarado)) < 0.015 && (!d.tienda || !x.tienda || x.tienda.toLowerCase().includes(String(d.tienda).toLowerCase().split(' ')[0])));
+    if (c.length === 1) e = c[0];
+  }
   return e || null;
 }
 export function applyDocs(data, docs) {
@@ -47,7 +52,7 @@ export function applyDocs(data, docs) {
     const b = hit ? { ...hit[1] } : { estado: 'En Miami', metodo: d.metodo || 'aereo', tienda: d.tienda ? titleCase(d.tienda) : null, items: [], articulos: null, creado: new Date().toISOString() };
     b.recibo = b.recibo || d.recibo;
     if (!b.f_miami && d.fecha) b.f_miami = d.fecha;
-    if (!b.estado || b.estado === 'En espera') b.estado = 'En Miami';
+    if (!b.estado || b.estado === 'En espera' || b.estado === 'Por cobrar') b.estado = 'En Miami';
     if (d.volumen != null) b.volumen_cuft = d.volumen;
     if (d.tipo === 'recibo') {
       if (!b.tracking && d.trackings && d.trackings[0]) b.tracking = cleanTrack(d.trackings[0]);

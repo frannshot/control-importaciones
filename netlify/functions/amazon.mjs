@@ -55,17 +55,40 @@ export function parseBinance(em) {
 
 /* ---------- Apply to the shipments ---------- */
 const AMZ_ID = /^\d{3}-\d{7}-\d{7}$/;
-const near = (a, b) => a != null && b != null && Math.abs(Number(a) - Number(b)) < 0.015;
+const near = (a, b, tol = 0.015) => a != null && b != null && Math.abs(Number(a) - Number(b)) < tol;
 const newId = () => 'am' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const shortP = (p) => p ? '…' + p.slice(-7) : '';
+const isAmz = (e) => /amazon/i.test(e.tienda || '');
+const pending = (e) => e.estado === 'Por cobrar' || e.cobro === 'pendiente';
+const what = (items, fallback) => { const L = (items || []).map((x) => x.n).filter(Boolean); if (!L.length) return fallback || 'Tu paquete'; const f = L[0].length > 44 ? L[0].slice(0, 42) + '…' : L[0]; return L.length > 1 ? f + ' y ' + (L.length - 1) + ' más' : f; };
+const day = (iso) => iso ? iso.slice(8) + '/' + iso.slice(5, 7) : '';
 
-// Returns notification messages. `backfill` = e-mails from before this feature existed: only enrich.
+// Which of the order's items add up to the amount charged (each price + sales tax, rounded per item like Amazon).
+function pickItems(items, amount, rate) {
+  const P = (items || []).map((it, i) => ({ i, v: it.p != null && Number.isFinite(Number(it.p)) ? Math.round(Number(it.p) * (1 + rate) * 100) / 100 : null })).filter((x) => x.v != null);
+  if (!P.length || P.length > 20) return null;
+  const tol = 0.02 + 0.005 * P.length; let best = null;
+  const rec = (start, chosen, sum) => {
+    if (best) return;
+    if (near(sum, amount, tol) && chosen.length) { best = chosen.slice(); return; }
+    if (sum > amount + tol) return;
+    for (let k = start; k < P.length; k++) { chosen.push(P[k].i); rec(k + 1, chosen, sum + P[k].v); chosen.pop(); }
+  };
+  rec(0, [], 0);
+  return best;
+}
+const taxedTotal = (items, rate) => { const ps = (items || []).filter((x) => x.p != null); return ps.length && ps.length === (items || []).length ? Math.round(ps.reduce((s, x) => s + Math.round(Number(x.p) * (1 + rate) * 100) / 100, 0) * 100) / 100 : null; };
+
+// Returns notification messages. E-mails dated before `initIso` only fill in shipments already in the app.
 export function applyAmazon(data, raws, initIso) {
   const st = data.meta.amz = data.meta.amz || { applied: {} };
+  const tar = (data.config && data.config.tarifas) || {};
+  const rate = (Number.isFinite(Number(tar.tax)) && tar.tax !== null && tar.tax !== '' ? Number(tar.tax) : 7) / 100;
   const msgs = []; const env = data.envios;
   const list = () => Object.entries(env);
   const items = raws.filter((r) => !st.applied[r.id]).sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const fresh = (d) => Date.now() - new Date(d).getTime() < 4 * 864e5;
+  const now = () => new Date().toISOString();
   for (const r of items) {
     const backfill = String(r.date) < initIso;
     if (r.kind === 'amazon') {
@@ -73,34 +96,59 @@ export function applyAmazon(data, raws, initIso) {
       if (p.tipo === 'pedido') {
         for (const o of p.orders) {
           if (list().some(([, e]) => e.pedido === o.pedido)) continue;
-          if (backfill) continue; // older orders are already in the app
+          if (backfill) continue;
+          // An order you already typed in (same total, no order number yet) gets the number; otherwise it is created.
+          const mine = list().filter(([, e]) => isAmz(e) && pending(e) && !AMZ_ID.test(e.pedido || '') && (near(e.total_compra, o.total, 0.06) || near(taxedTotal(e.items, rate), o.total, 0.06)))
+            .sort((a, b) => String(b[1].creado || '').localeCompare(String(a[1].creado || '')))[0];
+          if (mine) { env[mine[0]] = { ...mine[1], pedido: o.pedido, f_aprox_miami: mine[1].f_aprox_miami || o.llega, total_compra: o.total, actualizado: now() }; continue; }
           const id = newId();
-          env[id] = { estado: 'En espera', tienda: 'Amazon', pedido: o.pedido, f_compra: p.date ? caracasDay(p.date) : null, total_compra: o.total, metodo: 'aereo',
-            f_aprox_miami: o.llega, cobro: 'pendiente', articulos: p.label, items: [], n_articulos: p.n, notas: null, creado: new Date().toISOString(), actualizado: new Date().toISOString() };
-          if (fresh(p.date)) msgs.push({ title: '🛒 Pedido confirmado: $' + (o.total ?? 0).toFixed(2), body: p.label + ' · Pedido ' + shortP(o.pedido) + (o.llega ? ' · Llega a Miami aprox. el ' + o.llega.slice(8) + '/' + o.llega.slice(5, 7) : '') + ' · Amazon cobra al enviarlo', tag: 'am-' + id });
+          env[id] = { estado: 'Por cobrar', tienda: 'Amazon', pedido: o.pedido, f_compra: p.date ? caracasDay(p.date) : null, total_compra: o.total, metodo: 'aereo',
+            f_aprox_miami: o.llega, cobro: 'pendiente', articulos: p.label, items: [], n_articulos: p.n, notas: null, creado: now(), actualizado: now() };
+          if (fresh(p.date)) msgs.push({ title: '🛒 Pedido registrado: $' + (o.total ?? 0).toFixed(2), body: p.label + ' · Pedido ' + shortP(o.pedido) + ' · Agrega los enlaces y precios para que la app sepa qué va en cada caja', tag: 'am-' + id });
         }
       } else if (p.tipo === 'envio' && p.total != null) {
-        // 1) Already in the app with the same amount (shipments typed by hand, or a repeat e-mail)
-        let hit = list().find(([, e]) => (e.tienda || '').toLowerCase().includes('amazon') && near(e.total_compra, p.total) && (!e.pedido || !AMZ_ID.test(e.pedido) || p.pedidos.includes(e.pedido)) && e.cobro !== 'pendiente');
-        let id;
-        if (hit) { id = hit[0]; const e = env[id]; env[id] = { ...e, pedido: AMZ_ID.test(e.pedido || '') ? e.pedido : p.pedido, cobro: e.cobro_binance ? 'cobrado' : 'cobrado', f_envio_tienda: e.f_envio_tienda || caracasDay(p.date), f_aprox_miami: e.f_aprox_miami || p.llega, actualizado: new Date().toISOString() }; }
+        let id = null, moved = null;
+        // 1) Already in the app with this amount (typed by hand earlier, or a repeated e-mail)
+        const hit = list().find(([, e]) => isAmz(e) && !pending(e) && near(e.total_compra, p.total) && (!AMZ_ID.test(e.pedido || '') || p.pedidos.includes(e.pedido)));
+        if (hit) { id = hit[0]; const e = env[id]; env[id] = { ...e, pedido: AMZ_ID.test(e.pedido || '') ? e.pedido : p.pedido, cobro: 'cobrado', f_envio_tienda: e.f_envio_tienda || caracasDay(p.date), f_aprox_miami: e.f_aprox_miami || p.llega, actualizado: now() }; }
         else if (!backfill) {
-          // 2) The order is waiting for this shipment
-          const pend = list().find(([, e]) => e.cobro === 'pendiente' && p.pedidos.includes(e.pedido));
-          if (pend && (near(pend[1].total_compra, p.total) || Number(pend[1].total_compra) < p.total)) {
-            id = pend[0]; env[id] = { ...pend[1], cobro: 'cobrado', total_compra: p.total, f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pend[1].f_aprox_miami, actualizado: new Date().toISOString() };
-          } else {
+          // 2) The order waiting to be charged: same order number first, then orders typed by hand without one
+          const cands = list().filter(([, e]) => isAmz(e) && pending(e) && (p.pedidos.includes(e.pedido) || !AMZ_ID.test(e.pedido || '')))
+            .sort((a, b) => (p.pedidos.includes(b[1].pedido) ? 1 : 0) - (p.pedidos.includes(a[1].pedido) ? 1 : 0));
+          let done = false;
+          for (const [pid, pe] of cands) {
+            const its = pe.items || [];
+            const sel = pickItems(its, p.total, rate);
+            const whole = (sel && sel.length === its.length) || (!sel && near(pe.total_compra, p.total, 0.06));
+            if (whole) {
+              id = pid; moved = its;
+              env[pid] = { ...pe, estado: 'En espera', cobro: 'cobrado', pedido: AMZ_ID.test(pe.pedido || '') ? pe.pedido : p.pedido, total_compra: p.total, f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pe.f_aprox_miami, actualizado: now() };
+              done = true; break;
+            }
+            if (sel) { // part of the order: those items become their own package
+              moved = sel.map((k) => its[k]); const rest = its.filter((_, k) => !sel.includes(k));
+              id = newId();
+              env[id] = { estado: 'En espera', tienda: pe.tienda || 'Amazon', pedido: AMZ_ID.test(pe.pedido || '') ? pe.pedido : p.pedido, parte_de: pid, f_compra: pe.f_compra, total_compra: p.total, metodo: pe.metodo || 'aereo', cobro: 'cobrado',
+                f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pe.f_aprox_miami, items: moved, articulos: moved.map((x) => x.n).filter(Boolean).join('\n') || null, notas: null, creado: now(), actualizado: now() };
+              const left = Math.round((Number(pe.total_compra) - p.total) * 100) / 100;
+              env[pid] = { ...pe, pedido: AMZ_ID.test(pe.pedido || '') ? pe.pedido : p.pedido, items: rest, articulos: rest.map((x) => x.n).filter(Boolean).join('\n') || null, total_compra: taxedTotal(rest, rate) ?? (left > 0 ? left : pe.total_compra), actualizado: now() };
+              done = true; break;
+            }
+          }
+          if (!done) {
+            // 3) No prices to compare: same order -> split by count; nothing known -> new package
+            const pend = cands.find(([, e]) => p.pedidos.includes(e.pedido));
             id = newId();
             env[id] = { estado: 'En espera', tienda: 'Amazon', pedido: p.pedido, parte_de: pend ? pend[0] : null, f_compra: pend ? pend[1].f_compra : caracasDay(p.date), total_compra: p.total, metodo: 'aereo', cobro: 'cobrado', f_envio_tienda: caracasDay(p.date),
-              f_aprox_miami: p.llega, articulos: p.label, items: [], n_articulos: p.n, notas: pend ? 'Parte del pedido ' + p.pedido + ' (envío separado). ' + (p.n === 1 ? 'Mueve aquí el enlace de este artículo.' : 'Mueve aquí los enlaces de estos ' + (p.n || '') + ' artículos.') : null, creado: new Date().toISOString(), actualizado: new Date().toISOString() };
-            if (pend) { // what is left of the order keeps waiting
+              f_aprox_miami: p.llega, articulos: p.label, items: [], n_articulos: p.n, notas: null, creado: now(), actualizado: now() };
+            if (pend) {
               const rest = Math.round((Number(pend[1].total_compra) - p.total) * 100) / 100;
               const left = pend[1].n_articulos && p.n ? pend[1].n_articulos - p.n : null;
-              env[pend[0]] = { ...pend[1], total_compra: rest > 0 ? rest : pend[1].total_compra, n_articulos: left, articulos: left ? kindLabel(pend[1].articulos || '', left) : pend[1].articulos, actualizado: new Date().toISOString() };
+              env[pend[0]] = { ...pend[1], total_compra: rest > 0 ? rest : pend[1].total_compra, n_articulos: left, articulos: left ? kindLabel(pend[1].articulos || '', left) : pend[1].articulos, actualizado: now() };
             }
           }
         }
-        if (id && !backfill && fresh(p.date)) msgs.push({ title: '🚚 Amazon envió tu paquete', body: (env[id].items && env[id].items.length ? env[id].items.length + ' artículos' : p.label) + ' · $' + p.total.toFixed(2) + ' cobrado a tu tarjeta' + (p.llega ? ' · Llega a Miami aprox. el ' + p.llega.slice(8) + '/' + p.llega.slice(5, 7) : ''), tag: 'am-' + id });
+        if (id && !backfill && fresh(p.date)) msgs.push({ title: '🚚 Cobrado y enviado: ' + what(moved || env[id].items, p.label), body: '$' + p.total.toFixed(2) + ' · Ahora: En espera' + (p.llega ? ' · Llega a Miami aprox. el ' + day(p.llega) : ''), tag: 'am-' + id });
       }
       st.applied[r.id] = 1;
     } else if (r.kind === 'binance') {
@@ -119,7 +167,7 @@ function matchCharges(data, initIso) {
   const st = data.meta.amz; const cargos = st.cargos || {}; const out = [];
   const free = Object.entries(cargos).filter(([, c]) => !c.env);
   if (!free.length) return out;
-  const cand = Object.entries(data.envios).filter(([, e]) => (e.tienda || '').toLowerCase().includes('amazon') && !e.cobro_binance && n(e.total_compra) != null);
+  const cand = Object.entries(data.envios).filter(([, e]) => (e.tienda || '').toLowerCase().includes('amazon') && !e.cobro_binance && n(e.total_compra) != null && e.estado !== 'Por cobrar' && e.cobro !== 'pendiente');
   for (const [id, e] of cand) {
     const ref = e.f_envio_tienda || e.f_compra; if (!ref) continue;
     const pool = free.filter(([, c]) => !c.env && Math.abs(new Date(caracasDay(c.date)) - new Date(ref)) <= 6 * 864e5);

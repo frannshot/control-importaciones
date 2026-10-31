@@ -18,7 +18,7 @@
 :root {
   --bg: #f4f4f1; --panel: #fcfcfa; --panel-2: #f0f0ec; --ink: #0f1111; --muted: #565959; --line: #d5d9d9;
   --buy: #d9560f; --air: #1f5fd6; --sea: #0d7c74; --ok: #19804a; --warn: #a96500; --bad: #c2312b;
-  --st-wait: #b8620b; --st-mia: #1f5fd6; --st-tr: #6a3fc7; --st-done: #19804a;
+  --st-pay: #b0407e; --st-wait: #b8620b; --st-mia: #1f5fd6; --st-tr: #6a3fc7; --st-done: #19804a;
   --focus: #1f5fd6;
   --link: #007185; --link-h: #c45500; --yel: #ffd814; --yel-b: #f2c200; --yel-ink: #0f1111; --go: #067d62; --oh: #ecece7;
   --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -393,7 +393,7 @@ h1 { font-size: 30px; }
 /* ---------- Fresh theme: warm, airy, softly colored ---------- */
 :root {
   --bg: #f7f4ee; --panel: #ffffff; --panel-2: #f6f3ed; --ink: #1f2933; --muted: #6b7380; --line: #e7e2d9;
-  --st-wait: #d9822b; --st-mia: #2f7fe0; --st-tr: #7a5cf0; --st-done: #1f9d61;
+  --st-pay: #c2508f; --st-wait: #d9822b; --st-mia: #2f7fe0; --st-tr: #7a5cf0; --st-done: #1f9d61;
   --ok: #1f9d61; --warn: #c97a12; --bad: #d1453b; --focus: #2f7fe0;
   --link: #0e7c86; --link-h: #d4691b; --go: #12805c;
   --yel: #ffd23f; --yel-b: #f5c518; --grn: #22a464; --grn-b: #1b8f56;
@@ -495,6 +495,10 @@ details.auto > .fields { padding: 0 14px 14px; }
 .prow span { font-size: 14px; line-height: 1.35; }
 .psheet footer { align-items: center; justify-content: space-between; }
 #p-count.warn { color: var(--warn); }
+.ied input.iprice { width: 100%; max-width: 220px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 16px; }
+.iprice-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.iprice-row span { font-size: 12.5px; color: var(--muted); }
+.iprice-row .iprice { flex: 1 1 120px; }
 </style>
 </head>
 <body>
@@ -642,6 +646,7 @@ details.auto > .fields { padding: 0 14px 14px; }
         <label class="f"><span>Mínimo por paquete (USD)</span><input id="c-sea-min" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Sin definir"></label>
         <div class="group"><span>Tiempos, aduana y caja</span></div>
         <label class="f"><span>Días de embarque a retiro</span><input id="c-dias" type="number" step="1" min="0" inputmode="numeric"></label>
+        <label class="f"><span>Impuesto de ventas en Miami (%)</span><input id="c-tax" type="number" step="0.01" min="0" inputmode="decimal"></label>
         <label class="f"><span>Tope sin aranceles (USD)</span><input id="c-cap" type="number" step="1" min="0" inputmode="decimal"></label>
         <label class="f"><span>Dinero apartado para retiros (USD)</span><input id="c-cash" type="number" step="0.01" min="0" inputmode="decimal"></label>
       </div>
@@ -678,6 +683,7 @@ details.auto > .fields { padding: 0 14px 14px; }
         <div class="f wide"><span>Artículos · pega el enlace de cada producto y su foto se carga sola</span></div>
         <div class="items-ed" id="e-items"></div>
         <div class="f wide"><button class="btn small" id="e-additem" type="button" style="justify-self:start;width:max-content">+ Agregar artículo</button></div>
+        <div class="f wide"><span class="hint" id="e-ptotal" style="text-transform:none;letter-spacing:0;font-family:var(--f-body);font-weight:400"></span></div>
         <label class="f"><span>Total de la compra (USD)</span><input id="e-total_compra" type="number" min="0" step="0.01" inputmode="decimal"></label>
 
         <label class="f"><span>Método de envío</span><select id="e-metodo"><option value="aereo">Aéreo</option><option value="maritimo">Marítimo</option></select></label>
@@ -732,13 +738,14 @@ details.auto > .fields { padding: 0 14px 14px; }
 <script>
 (() => {
   const ESTADOS = [
-    { k: 'En espera', c: 'var(--st-wait)', d: 'Comprado, aún no llega a Miami' },
+    { k: 'Por cobrar', c: 'var(--st-pay)', d: 'Pagado en la tienda, falta que la tienda lo cobre y lo envíe' },
+    { k: 'En espera', c: 'var(--st-wait)', d: 'Cobrado y enviado por la tienda, aún no llega a Miami' },
     { k: 'En Miami', c: 'var(--st-mia)', d: 'En el almacén de Gold Coast' },
     { k: 'En tránsito', c: 'var(--st-tr)', d: 'Embarcado hacia Caracas' },
     { k: 'Terminado', c: 'var(--st-done)', d: 'Retirado y pagado' },
   ];
   const stColor = (k) => (ESTADOS.find((e) => e.k === k) || ESTADOS[0]).c;
-  const DEF_CFG = { air_rate: 4.85, air_min: 10, divisor: 166, vol_min: 1, sea_rate: null, sea_min: null, cap: 100, cash: 0, dias_retiro: 5 };
+  const DEF_CFG = { tax: 7, air_rate: 4.85, air_min: 10, divisor: 166, vol_min: 1, sea_rate: null, sea_min: null, cap: 100, cash: 0, dias_retiro: 5 };
   const S = { env: null, tasks: null, quotes: null, cfg: { ...DEF_CFG }, filter: 'activos', q: '', sort: { k: 'f_compra', dir: 'desc' }, db: null, ro: false, editing: null };
   const $ = (id) => document.getElementById(id);
   const h = (tag, attrs, ...kids) => {
@@ -907,11 +914,12 @@ details.auto > .fields { padding: 0 14px 14px; }
       return { t: 'En el almacén de Miami', s: e.f_miami ? 'Recibido el ' + fmtL(e.f_miami) : 'Esperando embarque', c: 'go' };
     }
     if (e.f_aprox_miami && e.f_aprox_miami < t0) return { t: 'Retrasado', s: 'Debía llegar a Miami el ' + fmtL(e.f_aprox_miami) + '. Revisa el tracking.', c: 'warn' };
+    if (e.estado === 'Por cobrar') return { t: 'Pendiente de cobro', s: (e.tienda || 'La tienda') + ' te cobra cuando envíe cada caja' + (e.f_aprox_miami ? ' · llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : ''), c: 'go' };
     if (e.cobro === 'pendiente') return { t: 'Pedido confirmado', s: 'Amazon te cobra cuando lo envíe' + (e.f_aprox_miami ? ' · llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : ''), c: 'go' };
     if (e.f_envio_tienda) return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Enviado por la tienda', s: 'Enviado por ' + (e.tienda || 'la tienda') + ' el ' + fmtL(e.f_envio_tienda), c: 'go' };
     return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Esperando envío de la tienda', s: e.f_compra ? 'Comprado el ' + fmtL(e.f_compra) : '', c: 'go' };
   }
-  const NEXT = { 'En espera': 'En Miami', 'En Miami': 'En tránsito', 'En tránsito': 'Terminado' };
+  const NEXT = { 'Por cobrar': 'En espera', 'En espera': 'En Miami', 'En Miami': 'En tránsito', 'En tránsito': 'Terminado' };
   async function advance(e) {
     const nx = NEXT[e.estado || 'En espera']; if (!nx || !S.db) return;
     const patch = { estado: nx, actualizado: new Date().toISOString() };
@@ -1025,7 +1033,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (!ED_ITEMS.length) ED_ITEMS.push({ n: '', img: null, url: null });
     renderEdItems();
     FIELDS.forEach((k) => { E(k).value = src[k] == null ? '' : src[k]; });
-    if (!e && !prefill) { E('estado').value = 'En espera'; E('metodo').value = 'aereo'; E('f_compra').value = todayISO(); E('tienda').value = 'Amazon'; }
+    if (!e && !prefill) { E('estado').value = 'Por cobrar'; E('metodo').value = 'aereo'; E('f_compra').value = todayISO(); E('tienda').value = 'Amazon'; }
     if (!E('estado').value) E('estado').value = 'En espera';
     if (!E('metodo').value) E('metodo').value = 'aereo';
     $('ed-del').hidden = !e; $('ed-dup').hidden = !e; $('ed-del').classList.remove('armed'); $('ed-del').textContent = 'Eliminar';
@@ -1041,7 +1049,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const b = {};
     FIELDS.forEach((k) => { const v = E(k).value.trim(); b[k] = NUMS.has(k) ? n(v) : (v || null); });
     if (b.embarque) b.embarque = b.embarque.toUpperCase();
-    b.items = ED_ITEMS.map((it) => ({ n: String(it.n || '').trim(), img: it.img || null, url: it.url || null })).filter((it) => it.n || it.img || it.url);
+    b.items = ED_ITEMS.map((it) => { const o = { n: String(it.n || '').trim(), img: it.img || null, url: it.url || null }; if (n(it.p) != null) o.p = n(it.p); if (it.w !== undefined) o.w = it.w; return o; }).filter((it) => it.n || it.img || it.url);
     b.articulos = b.items.map((it) => it.n).filter(Boolean).join('\n') || null;
     return b;
   }
@@ -1087,7 +1095,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     try { new URL(url); } catch (e) { return { error: 'Ese enlace no es válido' }; }
     const withTimeout = async (u, ms) => { const ac = new AbortController(); const to = setTimeout(() => ac.abort(), ms); try { const r = await fetch(u, { signal: ac.signal }); return r; } finally { clearTimeout(to); } };
-    let finalUrl = url, img = null, title = null, asin = amazonAsin(url), got = false, w = null;
+    let finalUrl = url, img = null, title = null, asin = amazonAsin(url), got = false, w = null, price = null;
     // 1) Our own preview service (Netlify function, same site).
     try {
       const r = await withTimeout('/.netlify/functions/preview?url=' + encodeURIComponent(url), 25000);
@@ -1097,6 +1105,7 @@ details.auto > .fields { padding: 0 14px 14px; }
         asin = asin || j.asin || amazonAsin(finalUrl);
         title = j.title ? cleanTitle(j.title) : null;
         if (n(j.weight_lb) != null) w = n(j.weight_lb);
+        if (n(j.price) != null) price = n(j.price);
         if (j.image && await probeImg(j.image)) img = j.image;
       }
     } catch (e) { /* not available here */ }
@@ -1114,7 +1123,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (!img && asin && await probeImg(asinImg(asin))) img = asinImg(asin);
     if (!title || BAD_TITLE.test(title)) title = slugName(finalUrl) || slugName(url) || null;
     if (!img && !title) return { error: 'No pude leer ese enlace. Prueba de nuevo en un momento.' };
-    return { img, title, url: finalUrl, w };
+    return { img, title, url: finalUrl, w, price };
   }
 
   let ED_ITEMS = [];
@@ -1126,6 +1135,8 @@ details.auto > .fields { padding: 0 14px 14px; }
       const name = h('input', { type: 'text', placeholder: 'Nombre del artículo (se llena solo)', 'aria-label': 'Nombre del artículo ' + (i + 1) }); name.value = it.n || '';
       const st = h('div', { class: 'ist' }, it.img ? 'Foto cargada' : '');
       name.addEventListener('input', () => { it.n = name.value; });
+      const price = h('input', { type: 'number', min: '0', step: '0.01', inputmode: 'decimal', class: 'iprice', placeholder: '0.00', 'aria-label': 'Precio del artículo ' + (i + 1) }); price.value = it.p ?? '';
+      price.addEventListener('input', () => { it.p = n(price.value); priceTotal(); });
       let last = it.url || '';
       let typed = false;
       const go = async (auto) => {
@@ -1144,6 +1155,7 @@ details.auto > .fields { padding: 0 14px 14px; }
         th.classList.remove('loading');
         if (r.title && (auto !== true || !name.value.trim())) { name.value = r.title; it.n = r.title; }
         it.w = r.w;
+        if (r.price != null && (auto !== true || n(it.p) == null) && !price.value) { price.value = r.price; it.p = r.price; priceTotal(); }
         st.textContent = r.img ? 'Listo' : 'Encontré el nombre, pero no la foto';
         if (!r.img) st.className = 'ist err';
       };
@@ -1152,8 +1164,20 @@ details.auto > .fields { padding: 0 14px 14px; }
       link.addEventListener('paste', () => setTimeout(go, 50));
       link.addEventListener('blur', go);
       const rm = h('button', { class: 'x', type: 'button', 'aria-label': 'Quitar artículo', onclick: () => { ED_ITEMS.splice(i, 1); if (!ED_ITEMS.length) ED_ITEMS.push({ n: '', img: null, url: null }); renderEdItems(); } }, '×');
-      box.append(h('div', { class: 'ied' }, th, h('div', { class: 'ins' }, link, name, st), rm));
+      box.append(h('div', { class: 'ied' }, th, h('div', { class: 'ins' }, link, name, h('label', { class: 'iprice-row' }, h('span', null, 'Precio sin impuesto (USD)'), price), st), rm));
     });
+    priceTotal();
+  }
+  // Sum of item prices + sales tax (rounded per item, like Amazon) fills the purchase total.
+  const TAX = () => (n(S.cfg.tax) ?? 7) / 100;
+  const withTax = (p) => Math.round(p * (1 + TAX()) * 100) / 100;
+  function priceTotal() {
+    const ps = ED_ITEMS.map((x) => n(x.p)).filter((v) => v != null);
+    const el = $('e-ptotal'); if (!el) return;
+    if (!ps.length) { el.textContent = ''; return; }
+    const tot = Math.round(ps.reduce((s, p) => s + withTax(p), 0) * 100) / 100;
+    el.textContent = 'Precios ' + usd(ps.reduce((s, p) => s + p, 0)) + ' + ' + Math.round(TAX() * 1000) / 10 + '% de impuesto = ' + usd(tot) + (ps.length < ED_ITEMS.filter((x) => x.url || x.n).length ? ' (faltan precios)' : '');
+    if (ps.length === ED_ITEMS.filter((x) => x.url || x.n).length) { E('total_compra').value = tot.toFixed(2); updateCalc(); }
   }
   $('e-additem').addEventListener('click', () => { ED_ITEMS.push({ n: '', img: null, url: null }); renderEdItems(); const ins = document.querySelectorAll('#e-items input[type=url]'); if (ins.length) ins[ins.length - 1].focus(); });
   $('new').addEventListener('click', () => openEditor(null));
@@ -1351,7 +1375,7 @@ details.auto > .fields { padding: 0 14px 14px; }
   }
 
   /* ---------- Settings ---------- */
-  const CFGMAP = [['c-air-rate', 'air_rate'], ['c-air-min', 'air_min'], ['c-div', 'divisor'], ['c-vmin', 'vol_min'], ['c-sea-rate', 'sea_rate'], ['c-sea-min', 'sea_min'], ['c-dias', 'dias_retiro'], ['c-cap', 'cap'], ['c-cash', 'cash']];
+  const CFGMAP = [['c-air-rate', 'air_rate'], ['c-air-min', 'air_min'], ['c-div', 'divisor'], ['c-vmin', 'vol_min'], ['c-sea-rate', 'sea_rate'], ['c-sea-min', 'sea_min'], ['c-dias', 'dias_retiro'], ['c-tax', 'tax'], ['c-cap', 'cap'], ['c-cash', 'cash']];
   function renderCfg() { CFGMAP.forEach(([id, k]) => { const el = $(id); if (document.activeElement !== el) el.value = S.cfg[k] == null ? '' : S.cfg[k]; el.disabled = S.ro || !S.db; }); $('cfg-save').disabled = S.ro || !S.db; }
   $('cfg-save').addEventListener('click', async () => {
     const body = {}; CFGMAP.forEach(([id, k]) => { body[k] = n($(id).value); });
@@ -1431,7 +1455,7 @@ details.auto > .fields { padding: 0 14px 14px; }
   async function orderImage(e) {
     const W = 600, S2 = 2, P = 28, F = (w, s) => w + ' ' + s + 'px -apple-system, "Segoe UI", Arial, sans-serif';
     const items = itemsOf(e); const st = statusOf(e);
-    const sc = cssVar({ 'En espera': '--st-wait', 'En Miami': '--st-mia', 'En tránsito': '--st-tr', 'Terminado': '--st-done' }[e.estado || 'En espera']);
+    const sc = cssVar({ 'Por cobrar': '--st-pay', 'En espera': '--st-wait', 'En Miami': '--st-mia', 'En tránsito': '--st-tr', 'Terminado': '--st-done' }[e.estado || 'En espera']);
     const pics = await Promise.all(items.map((it) => photo(it.img)));
     const meas = document.createElement('canvas').getContext('2d');
     meas.font = F(600, 15); const itemLines = items.map((it) => wrap(meas, it.n || 'Artículo', W - P * 2 - 92, 3));

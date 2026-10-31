@@ -57,6 +57,18 @@ export function weightLb(html) {
   return null;
 }
 
+// Current price in USD (the one in the buy box), or null when unsure.
+export function priceUsd(html) {
+  const num = (s) => { const v = parseFloat(String(s).replace(/[^\d.]/g, '')); return Number.isFinite(v) && v > 0 && v < 100000 ? Math.round(v * 100) / 100 : null; };
+  const j = html.match(/"priceAmount"\s*:\s*([\d.]+)/); if (j) return num(j[1]);
+  for (const id of ['corePriceDisplay_desktop_feature_div', 'corePrice_feature_div', 'corePrice_desktop', 'apex_desktop', 'tmmSwatches', 'buybox']) {
+    const i = html.indexOf('id="' + id + '"'); if (i < 0) continue;
+    const m = html.slice(i, i + 8000).match(/<span class="a-offscreen">\s*\$([\d,]+\.\d{2})\s*<\/span>/); if (m) return num(m[1]);
+  }
+  const b = html.match(/id="(?:price|newBuyBoxPrice|price_inside_buybox|priceblock_ourprice)"[^>]*>\s*\$([\d,]+\.\d{2})/); if (b) return num(b[1]);
+  return null;
+}
+
 export function extractAmazon(html) {
   let image = firstMatch(html, [
     /"hiRes":"(https:\/\/[^"]+?\.(?:jpg|jpeg|png|webp))"/i,
@@ -79,7 +91,7 @@ export function extractAmazon(html) {
     const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     if (t) title = decode(t[1]).replace(/^Amazon\.[a-z.]+\s*:\s*/i, '').replace(/\s*:\s*Amazon\.[a-z.]+.*$/i, '');
   }
-  return { image: image ? decode(image) : null, title: title || null, weight_lb: weightLb(html) };
+  return { image: image ? decode(image) : null, title: title || null, weight_lb: weightLb(html), price: priceUsd(html) };
 }
 
 export function extractGeneric(html, base) {
@@ -153,7 +165,7 @@ export default async (req) => {
       if (asin || /(^|\.)amazon\./i.test(new URL(r.finalUrl).hostname)) {
         if (looksBlocked(r.html)) continue;
         const a = extractAmazon(r.html);
-        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image, weight_lb: a.weight_lb });
+        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image, weight_lb: a.weight_lb, price: a.price });
         continue;
       }
       const g = extractGeneric(r.html, r.finalUrl);
