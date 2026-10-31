@@ -505,6 +505,16 @@ details.auto > .fields { padding: 0 14px 14px; }
 .prebox .pr { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .prebox .pr input { flex: 1 1 180px; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; font-size: 16px; }
 .prebox.done { flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: center; background: #f2fbf6; border-color: #cdebdc; color: #12805c; padding: 8px 12px; }
+.pfields { display: flex; flex-direction: column; background: #fff; border-radius: 10px; border: 1px solid #d5ece9; overflow: hidden; }
+.pf { display: grid; grid-template-columns: 128px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; background: #fff; border: 0; border-bottom: 1px solid #edf5f4; padding: 9px 12px; cursor: pointer; font: inherit; }
+.pf:last-child { border-bottom: 0; }
+.pf:hover { background: #f6fbfb; }
+.pf .k { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.pf .v { font-size: 13.5px; color: var(--ink); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pf .c { font-size: 12px; font-weight: 700; color: var(--link); }
+.pf.ok { background: #e3f5ec; }
+.pf.ok .c { color: #12805c; }
+@media (max-width: 520px) { .pf { grid-template-columns: minmax(0, 1fr) auto; } .pf .k { grid-column: 1 / -1; } }
 </style>
 </head>
 <body>
@@ -1429,10 +1439,6 @@ details.auto > .fields { padding: 0 14px 14px; }
 
 
   /* ---------- Pre-alert for Gold Coast ---------- */
-  function preText(e) {
-    const L = itemsOf(e).map((x) => x.n).filter(Boolean);
-    return ['Tracking: ' + (e.tracking || '—'), 'Tienda: ' + (e.tienda || 'Amazon'), 'Valor: ' + usd(n(e.total_compra)), 'Contenido: ' + (L.length ? L.length + (L.length === 1 ? ' artículo' : ' artículos') + ' (' + L.join('; ') + ')' : (e.articulos || '')), e.pedido ? 'Pedido: ' + e.pedido : null, 'Envío: ' + (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo')].filter(Boolean).join('\n');
-  }
   async function copy(text) { try { await navigator.clipboard.writeText(text); return true; } catch (err) { const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e2) { /* no clipboard */ } ta.remove(); return ok; } }
   function preBox(e) {
     if (e.estado !== 'En espera' || e.recibo || S.ro) return null;
@@ -1446,13 +1452,24 @@ details.auto > .fields { padding: 0 14px 14px; }
         h('div', { class: 'pt' }, h('b', null, 'Falta el tracking para la prealerta'), h('span', null, url ? 'Ábrelo en Amazon, copia el número y pégalo aquí.' : 'Cópialo de Amazon y pégalo aquí.')),
         h('div', { class: 'pr' }, url ? h('a', { class: 'pill', href: url, target: '_blank', rel: 'noopener' }, 'Ver tracking en Amazon') : null, inp, h('button', { class: 'pill y', type: 'button', onclick: save }, 'Guardar')));
     }
+    // The same fields, in the same order, as Gold Coast's pre-alert form.
+    const [y, m, d] = String(e.f_compra || todayISO()).split('-');
+    const L = itemsOf(e).map((x) => x.n).filter(Boolean);
+    const rows = [
+      ['Purchase date', m + '/' + d + '/' + y],
+      ['Store name', e.tienda || 'Amazon'],
+      ['Purchase content', L.length ? (L.length === 1 ? '1 libro: ' : L.length + ' libros: ').replace(/libros?/, BOOKS(L) ? '$&' : (L.length === 1 ? 'artículo' : 'artículos')) + L.join('; ') : (e.articulos || '')],
+      ['Tracking number', e.tracking],
+      ['Merchandise Amount', n(e.total_compra) != null ? n(e.total_compra).toFixed(2).replace('.', ',') : ''],
+    ];
     return h('div', { class: 'prebox' },
-      h('div', { class: 'pt' }, h('b', null, 'Lista para la prealerta'), h('span', null, 'Tracking ', h('b', { class: 'mono' }, e.tracking), ' · ' + usd(n(e.total_compra)))),
+      h('div', { class: 'pt' }, h('b', null, 'Lista para la prealerta'), h('span', null, 'Toca cada dato para copiarlo y pégalo en el mismo campo de Gold Coast. Destino: Venezuela · Servicio: ' + (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo') + '.')),
+      h('div', { class: 'pfields' }, ...rows.map(([k, v]) => h('button', { class: 'pf', type: 'button', onclick: async (ev) => { const b = ev.currentTarget; const ok = await copy(String(v || '')); b.classList.add('ok'); setTimeout(() => b.classList.remove('ok'), 1200); toast(ok ? k + ' copiado' : 'No se pudo copiar'); } }, h('span', { class: 'k' }, k), h('span', { class: 'v' + (k === 'Tracking number' ? ' mono' : '') }, String(v || '—')), h('span', { class: 'c' }, 'Copiar')))),
       h('div', { class: 'pr' },
-        h('button', { class: 'pill y', type: 'button', onclick: async () => { toast((await copy(preText(e))) ? 'Datos copiados: pégalos en Gold Coast' : 'No se pudo copiar'); } }, 'Copiar datos para Gold Coast'),
-        h('button', { class: 'pill', type: 'button', onclick: () => copy(e.tracking).then((ok) => toast(ok ? 'Tracking copiado' : 'No se pudo copiar')) }, 'Copiar tracking'),
+        h('a', { class: 'pill', href: 'https://app.stephytracking.com/goldcoast/1/prealerts', target: '_blank', rel: 'noopener' }, 'Abrir prealertas de Gold Coast'),
         h('button', { class: 'pill g', type: 'button', onclick: async () => { await S.db.collection('envios').doc(e.id).set({ ...strip(e), prealerta: todayISO(), actualizado: new Date().toISOString() }); toast('Prealerta marcada'); } }, '✓ Ya la hice')));
   }
+  const BOOKS = (L) => L.every((x) => /libro|book|novela|edici[oó]n|tapa (dura|blanda)|spanish edition|paperback|hardcover/i.test(x));
 
   /* ---------- Gold Coast estimate (before the invoice arrives) ---------- */
   // Uses the weight on the Gold Coast receipt when there is one; otherwise the Amazon weight of each item
