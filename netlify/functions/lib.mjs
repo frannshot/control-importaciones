@@ -1,5 +1,6 @@
 // Shared helpers: auth, central data store and applying Gold Coast documents.
 import { getStore } from '@netlify/blobs';
+import webpush from 'web-push';
 
 const KEY_HASH = '48e899b704fe73ef1962ca6a9e9e12b5e69fd774fe7ca0d831ebe9b4068276f5';
 export const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'x-key, content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
@@ -39,7 +40,7 @@ export function applyDocs(data, docs) {
   const applied = data.meta.applied;
   const fresh = docs.filter((d) => applied[d.id] !== d.updatedAt)
     .sort((a, b) => (a.tipo === b.tipo ? 0 : a.tipo === 'recibo' ? -1 : 1) || String(a.fecha).localeCompare(String(b.fecha)));
-  let changed = 0, created = 0;
+  let changed = 0, created = 0; const events = [];
   for (const d of fresh) {
     const hit = findEnv(d, data.envios); const isNew = !hit;
     const id = hit ? hit[0] : 'gc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -64,6 +65,75 @@ export function applyDocs(data, docs) {
     b.actualizado = new Date().toISOString();
     data.envios[id] = b; applied[d.id] = d.updatedAt;
     if (isNew) created++; else changed++;
+    events.push({ id, b, d, isNew });
   }
-  return { changed, created };
+  return { changed, created, events };
+}
+
+/* ---- Push notifications ---- */
+// The signing keys are created once and kept in the private store, never in the code.
+async function vapid(s) {
+  let v = await s.get('vapid', { type: 'json' });
+  if (!v) { v = webpush.generateVAPIDKeys(); await s.setJSON('vapid', v); }
+  return v;
+}
+export async function publicKey(s) { return (await vapid(s)).publicKey; }
+export async function notify(s, msgs) {
+  msgs = (msgs || []).filter(Boolean); if (!msgs.length) return 0;
+  const subs = (await s.get('subs', { type: 'json' })) || {};
+  const list = Object.entries(subs); if (!list.length) return 0;
+  const v = await vapid(s);
+  webpush.setVapidDetails('https://importaciones-fran.netlify.app', v.publicKey, v.privateKey);
+  let sent = 0, dirty = false;
+  for (const m of msgs) {
+    for (const [k, sub] of list) {
+      if (!subs[k]) continue;
+      try { await webpush.sendNotification(sub, JSON.stringify(m), { TTL: 86400 }); sent++; }
+      catch (e) { if (e && (e.statusCode === 404 || e.statusCode === 410)) { delete subs[k]; dirty = true; } }
+    }
+  }
+  if (dirty) await s.setJSON('subs', subs);
+  return sent;
+}
+
+/* ---- Messages ---- */
+const rates = (data) => { const c = (data.config && data.config.tarifas) || {}; return { rate: Number(c.air_rate) || 4.85, min: Number(c.air_min) || 10, dias: Number.isFinite(Number(c.dias_retiro)) && c.dias_retiro !== null && c.dias_retiro !== '' ? Number(c.dias_retiro) : 5 }; };
+const money = (v) => '$' + Number(v).toFixed(2);
+const what = (b) => { const it = (b.items || []).map((x) => x.n).filter(Boolean); if (!it.length) return 'Tu paquete'; const first = it[0].length > 48 ? it[0].slice(0, 46) + '…' : it[0]; return it.length > 1 ? first + ' y ' + (it.length - 1) + ' más' : first; };
+const fmtDay = (iso) => { const M = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']; const [, m, d] = iso.split('-'); return Number(d) + ' ' + M[Number(m) - 1]; };
+const addDays = (iso, k) => { const x = new Date(iso + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + k); return x.toISOString().slice(0, 10); };
+const fresh = (iso, days) => !iso || (Date.now() - new Date(iso).getTime()) < days * 864e5;
+export { embarqueDate, todayCaracas };
+
+export function docMessages(data, events) {
+  const out = [];
+  for (const { id, b, d } of events || []) {
+    if (!fresh(d.email_date, 4)) continue; // do not announce old e-mails
+    if (d.tipo === 'recibo') {
+      const lb = b.peso_lb != null ? Number(b.peso_lb) : null; const r = rates(data);
+      out.push({ title: '📦 Llegó a Miami', body: what(b) + ' · Recibo ' + d.recibo + (lb != null ? ' · ' + lb.toFixed(2) + ' lb · Gold Coast aprox. ' + money(Math.max(r.min, lb * r.rate)) : ''), tag: 'gc-' + id });
+    } else if (d.tipo === 'factura' && d.total != null) {
+      out.push({ title: '🧾 Factura de Gold Coast: ' + money(d.total), body: what(b) + (d.cobrado != null ? ' · ' + d.cobrado + ' ' + (d.cobrado_unidad || 'lb').toLowerCase() : '') + (d.embarque ? ' · Embarque ' + d.embarque : ''), tag: 'gc-' + id });
+    }
+    out.push(...stepMessages(data, id));
+  }
+  return out;
+}
+// "Salió hacia Caracas" and "Listo para retirar", each sent once per shipment.
+export function stepMessages(data, id) {
+  const b = data.envios[id]; if (!b || b.estado === 'Terminado') return [];
+  const sent = data.meta.notified = data.meta.notified || {};
+  const t = todayCaracas(), emb = embarqueDate(b.embarque), out = [];
+  if (!emb || emb > t) return out;
+  if (!sent[id + ':transito'] && addDays(emb, 3) >= t) {
+    sent[id + ':transito'] = t;
+    const est = addDays(emb, rates(data).dias);
+    out.push({ title: '✈️ Salió hacia Caracas', body: what(b) + ' · Embarque ' + b.embarque + ' · Llega aprox. el ' + fmtDay(est), tag: 'tr-' + id });
+  } else if (!sent[id + ':transito']) sent[id + ':transito'] = t; // too old: mark silently
+  const ready = addDays(emb, rates(data).dias);
+  if (!sent[id + ':listo'] && ready <= t) {
+    sent[id + ':listo'] = t;
+    if (addDays(ready, 3) >= t) out.push({ title: '✅ Listo para retirar', body: what(b) + ' debería estar en Las Mercedes. Llama a Gold Coast antes de ir.', tag: 'ok-' + id });
+  }
+  return out;
 }

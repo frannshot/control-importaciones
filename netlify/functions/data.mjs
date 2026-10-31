@@ -24,6 +24,7 @@ export default async (req) => {
     delete fresh.config.sync;
     fresh.meta.applied = (p.applied && typeof p.applied === 'object') ? p.applied : data.meta.applied;
     fresh.meta.rev = data.meta.rev;
+    fresh.meta.notified = data.meta.notified || {};
     data = fresh;
     const docs = (await s.get('docs', { type: 'json' })) || {};
     applyDocs(data, Object.values(docs));

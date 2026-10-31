@@ -20,3 +20,14 @@ self.addEventListener('fetch', (e) => {
   }
   e.respondWith(fetch(req).then((res) => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return res; }).catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html'))));
 });
+
+// Push notifications from the server.
+self.addEventListener('push', (e) => {
+  let m = {}; try { m = e.data ? e.data.json() : {}; } catch (err) { m = { title: 'Importaciones', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(m.title || 'Importaciones', { body: m.body || '', tag: m.tag, icon: './icon-192.png', badge: './icon-192.png', data: { url: m.url || './' } }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => { for (const c of cs) { if ('focus' in c) return c.focus(); } return self.clients.openWindow(url); }));
+});

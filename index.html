@@ -638,6 +638,11 @@ details.auto > .fields { padding: 0 14px 14px; }
       </div>
       <div class="row" style="margin-top:12px"><button class="btn primary" id="sync-save" type="button">Guardar clave</button><button class="btn" id="sync-now" type="button">Sincronizar ahora</button><span class="hint" id="sync-status">Sin configurar</span></div>
     </section>
+    <section id="notif">
+      <div class="sect"><h2>Notificaciones</h2><span class="meta">Avisos en este dispositivo cuando algo cambie solo</span></div>
+      <div class="row"><button class="btn primary" id="push-on" type="button">Activar notificaciones</button><button class="btn" id="push-test" type="button" hidden>Enviar una prueba</button><span class="hint" id="push-status"></span></div>
+      <p class="hint" style="margin-top:10px">Recibos y facturas de Gold Coast, salida hacia Caracas y paquete listo para retirar. En el iPhone, abre la app desde su ícono en la pantalla de inicio para activarlas.</p>
+    </section>
   </main>
 </div>
 
@@ -1592,6 +1597,45 @@ details.auto > .fields { padding: 0 14px 14px; }
     ro.append('Esta dirección ya no se actualiza y no puede buscar fotos de productos. Usa la nueva: ', h('a', { href: 'https://importaciones-fran.netlify.app/', class: 'link' }, 'importaciones-fran.netlify.app'), '. Antes, toca “Copia de seguridad” aquí y luego “Restaurar” allá.');
   }
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) { /* optional */ }
+
+  /* ---------- Push notifications ---------- */
+  const PUSH = (() => {
+    const key = () => ((STORE.get('config', 'sync') || {}).key) || '';
+    const st = (t) => { $('push-status').textContent = t; };
+    const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const standalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const b64 = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...r].map((c) => c.charCodeAt(0))); };
+    const call = (method, body) => fetch('/.netlify/functions/push', { method, cache: 'no-store', headers: { 'x-key': key(), 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    async function refresh() {
+      if (!supported()) { $('push-on').disabled = true; st(isIOS && !standalone() ? 'Abre la app desde su ícono en la pantalla de inicio para activarlas.' : 'Este navegador no permite notificaciones.'); return; }
+      const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+      const on = !!sub && Notification.permission === 'granted';
+      $('push-on').textContent = on ? 'Notificaciones activadas ✓' : 'Activar notificaciones'; $('push-on').disabled = on; $('push-test').hidden = !on;
+      st(on ? 'Este dispositivo recibe los avisos.' : Notification.permission === 'denied' ? 'Están bloqueadas: actívalas en Ajustes → Notificaciones → Importaciones.' : '');
+    }
+    async function enable() {
+      if (!key()) { toast('Primero guarda la clave de sincronización'); return; }
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') { st('No se dio el permiso. Puedes activarlo en Ajustes → Notificaciones.'); return; }
+        st('Activando…');
+        const r = await call('GET'); if (r.status === 401) { st('La clave no es correcta'); return; }
+        const { publicKey } = await r.json();
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(publicKey) });
+        const s = await call('POST', { subscription: sub.toJSON() });
+        if (!s.ok) throw new Error('HTTP ' + s.status);
+        toast('Notificaciones activadas'); refresh();
+      } catch (e) { st('No se pudieron activar. Intenta de nuevo.'); }
+    }
+    $('push-on').addEventListener('click', enable);
+    $('push-test').addEventListener('click', async () => { try { const r = await call('POST', { test: true }); toast(r.ok ? 'Prueba enviada' : 'No se pudo enviar'); } catch (e) { toast('No se pudo enviar'); } });
+    return { refresh };
+  })();
+  setTimeout(() => PUSH.refresh().catch(() => {}), 1500);
+
   /* ---------- Self-update: when a new version is published, reload on its own ---------- */
   const APP_V = 'importaciones-v17';
   let swReg = null;
