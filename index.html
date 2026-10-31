@@ -1637,7 +1637,7 @@ details.auto > .fields { padding: 0 14px 14px; }
   setTimeout(() => PUSH.refresh().catch(() => {}), 1500);
 
   /* ---------- Self-update: when a new version is published, reload on its own ---------- */
-  const APP_V = 'importaciones-v17';
+  const APP_V = 'importaciones-v18';
   let swReg = null;
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {}));
   const busyNow = () => !$('scrim').hidden || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
