@@ -91,7 +91,7 @@ export function applyAmazon(data, raws, initIso) {
             id = pend[0]; env[id] = { ...pend[1], cobro: 'cobrado', total_compra: p.total, f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pend[1].f_aprox_miami, actualizado: new Date().toISOString() };
           } else {
             id = newId();
-            env[id] = { estado: 'En espera', tienda: 'Amazon', pedido: p.pedido, f_compra: pend ? pend[1].f_compra : caracasDay(p.date), total_compra: p.total, metodo: 'aereo', cobro: 'cobrado', f_envio_tienda: caracasDay(p.date),
+            env[id] = { estado: 'En espera', tienda: 'Amazon', pedido: p.pedido, parte_de: pend ? pend[0] : null, f_compra: pend ? pend[1].f_compra : caracasDay(p.date), total_compra: p.total, metodo: 'aereo', cobro: 'cobrado', f_envio_tienda: caracasDay(p.date),
               f_aprox_miami: p.llega, articulos: p.label, items: [], n_articulos: p.n, notas: pend ? 'Parte del pedido ' + p.pedido + ' (envío separado). ' + (p.n === 1 ? 'Mueve aquí el enlace de este artículo.' : 'Mueve aquí los enlaces de estos ' + (p.n || '') + ' artículos.') : null, creado: new Date().toISOString(), actualizado: new Date().toISOString() };
             if (pend) { // what is left of the order keeps waiting
               const rest = Math.round((Number(pend[1].total_compra) - p.total) * 100) / 100;

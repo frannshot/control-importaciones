@@ -482,6 +482,19 @@ details.auto > .fields { padding: 0 14px 14px; }
 .ofoot .cobro { font-style: normal; font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
 .ofoot .cobro.pend { color: #8a5a00; background: #fff1d6; }
 .ofoot .cobro.ok { color: #12805c; background: #e3f5ec; }
+.splitbox { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; background: #fff8e1; border: 1px solid #f5dfa0; border-radius: 12px; padding: 10px 12px; margin: 4px 0 12px; }
+.splitbox > div { display: flex; flex-direction: column; gap: 2px; font-size: 13px; min-width: 0; flex: 1 1 260px; }
+.splitbox b { font-size: 13.5px; }
+.splitbox span { color: var(--muted); }
+.splitbox .pill { white-space: nowrap; }
+.plist { display: flex; flex-direction: column; gap: 8px; }
+.prow { display: grid; grid-template-columns: 22px 56px minmax(0, 1fr); gap: 12px; align-items: center; background: #fff; border-radius: 12px; padding: 8px 12px; box-shadow: var(--sh-1); cursor: pointer; border: 2px solid transparent; }
+.prow.on { border-color: var(--grn); background: #f2fbf6; }
+.prow input { width: 20px; height: 20px; accent-color: var(--grn); }
+.prow .thumb { width: 56px; height: 56px; border: 0; background: transparent; }
+.prow span { font-size: 14px; line-height: 1.35; }
+.psheet footer { align-items: center; justify-content: space-between; }
+#p-count.warn { color: var(--warn); }
 </style>
 </head>
 <body>
@@ -700,6 +713,17 @@ details.auto > .fields { padding: 0 14px 14px; }
       <div class="dimg" id="d-img"><p class="hint">Preparando la imagen…</p></div>
       <div class="row" style="margin-top:14px"><button class="btn primary" id="d-share" type="button">Compartir o guardar</button><button class="btn" id="d-dl" type="button">Descargar imagen</button><button class="btn ghost" id="d-edit" type="button">Editar pedido</button></div>
     </div>
+  </div>
+</div>
+
+<div class="scrim" id="pscrim" hidden>
+  <div class="sheet psheet" role="dialog" aria-modal="true" aria-labelledby="p-title">
+    <header><h2 id="p-title">Elegir artículos</h2><button class="x" id="p-x" type="button" aria-label="Cerrar">×</button></header>
+    <div class="body">
+      <p class="hint" id="p-hint" style="margin:0 0 12px"></p>
+      <div class="plist" id="p-list"></div>
+    </div>
+    <footer><div class="row"><button class="btn primary" id="p-ok" type="button" disabled>Mover a este envío</button><button class="btn ghost" id="p-cancel" type="button">Cancelar</button></div><span class="hint" id="p-count"></span></footer>
   </div>
 </div>
 
@@ -927,7 +951,12 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (nx) acts.append(h('button', { class: 'pill' + (nx === 'Terminado' ? ' g' : ''), type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? '✓ Marcar como retirado' : 'Pasar a ' + nx));
     acts.append(h('button', { class: 'pill', type: 'button', onclick: () => openEditor(e) }, 'Ver o editar pedido'));
     if (acts.firstChild && !acts.firstChild.classList.contains('g')) acts.firstChild.classList.add('y');
-    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, car), acts);
+    const parent = e.parte_de ? (S.env || []).find((x) => x.id === e.parte_de) : null;
+    const want = n(e.n_articulos) || 1, have = itemsOf(e).filter((x) => x.url || x.img).length;
+    const pick = parent && itemsOf(parent).length && have < want && !S.ro ? h('div', { class: 'splitbox' },
+      h('div', null, h('b', null, 'Envío separado del pedido ' + (e.pedido ? '…' + e.pedido.slice(-7) : '')), h('span', null, 'Amazon mandó ' + want + (want === 1 ? ' artículo' : ' artículos') + ' en esta caja. Elige cuál' + (want === 1 ? '' : 'es') + ' de los ' + itemsOf(parent).length + ' del pedido.')),
+      h('button', { class: 'pill y', type: 'button', onclick: () => openPicker(e, parent) }, 'Elegir artículos de este envío')) : null;
+    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, pick, pick && !have ? null : car), acts);
     const foot = h('div', { class: 'ofoot' },
       h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra))), e.cobro === 'pendiente' ? h('i', { class: 'cobro pend' }, 'pendiente de cobro') : n(e.cobro_binance) != null ? h('i', { class: 'cobro ok', title: 'Cobro confirmado por Binance' + (e.cobro_fecha ? ' el ' + fmtL(e.cobro_fecha) : '') }, '✓ cobrado') : null),
       n(e.factura_gc) != null ? h('span', null, 'Gold Coast ', h('b', null, usd(n(e.factura_gc)))) : (() => { const g = gcEstimate(e); return g ? h('span', { class: 'gcest', title: g.why }, 'Gold Coast aprox. ', h('b', null, '≈ ' + usd(g.usd))) : h('span', null, 'Gold Coast ', h('b', null, 'sin facturar')); })(),
@@ -1335,6 +1364,35 @@ details.auto > .fields { padding: 0 14px 14px; }
 
 
 
+
+  /* ---------- Split shipments: choose which items of the order came in this box ---------- */
+  let PICK = null;
+  function openPicker(e, parent) {
+    const items = itemsOf(parent); const want = n(e.n_articulos) || 1;
+    PICK = { e, parent, sel: new Set(), want };
+    $('p-hint').textContent = 'Amazon envió ' + want + (want === 1 ? ' artículo' : ' artículos') + ' por ' + usd(n(e.total_compra)) + ' en esta caja. Marca cuál' + (want === 1 ? '' : 'es') + ' llegó en ella; se moverá' + (want === 1 ? '' : 'n') + ' desde el pedido original.';
+    const list = $('p-list'); list.textContent = '';
+    items.forEach((it, i) => {
+      const row = h('label', { class: 'prow' }, h('input', { type: 'checkbox', onchange: (ev) => { ev.target.checked ? PICK.sel.add(i) : PICK.sel.delete(i); row.classList.toggle('on', ev.target.checked); upd(); } }), thumbEl(it.img), h('span', null, it.n || 'Artículo'));
+      list.append(row);
+    });
+    const upd = () => { const k = PICK.sel.size; $('p-count').textContent = k + ' de ' + want + ' elegido' + (want === 1 ? '' : 's'); $('p-ok').disabled = k === 0; $('p-count').classList.toggle('warn', k > want); };
+    upd(); $('pscrim').hidden = false;
+  }
+  const closePicker = () => { $('pscrim').hidden = true; PICK = null; };
+  $('p-x').addEventListener('click', closePicker); $('p-cancel').addEventListener('click', closePicker);
+  $('pscrim').addEventListener('click', (ev) => { if (ev.target === $('pscrim')) closePicker(); });
+  $('p-ok').addEventListener('click', async () => {
+    if (!PICK) return;
+    const { e, parent, sel } = PICK; const all = itemsOf(parent);
+    const moved = all.filter((_, i) => sel.has(i)), rest = all.filter((_, i) => !sel.has(i));
+    const mine = itemsOf(e).filter((x) => x.url || x.img).concat(moved);
+    const names = (L) => L.map((x) => x.n).filter(Boolean).join('\n') || null;
+    await S.db.collection('envios').doc(e.id).set({ ...strip(e), items: mine, articulos: names(mine), notas: /^Parte del pedido/.test(e.notas || '') ? null : e.notas, actualizado: new Date().toISOString() });
+    await S.db.collection('envios').doc(parent.id).set({ ...strip(parent), items: rest, articulos: names(rest), actualizado: new Date().toISOString() });
+    closePicker(); toast(moved.length === 1 ? '1 artículo movido' : moved.length + ' artículos movidos');
+  });
+
   /* ---------- Gold Coast estimate (before the invoice arrives) ---------- */
   // Uses the weight on the Gold Coast receipt when there is one; otherwise the Amazon weight of each item
   // (or a typical weight) plus the box. Price = weight × rate, never below the minimum.
@@ -1645,7 +1703,7 @@ details.auto > .fields { padding: 0 14px 14px; }
   const APP_V = 'importaciones-v19';
   let swReg = null;
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {}));
-  const busyNow = () => !$('scrim').hidden || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+  const busyNow = () => !$('scrim').hidden || !$('pscrim').hidden || !$('dscrim').hidden || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
   let pendingUpdate = false;
   async function checkUpdate() {
     if (!navigator.onLine) return;
