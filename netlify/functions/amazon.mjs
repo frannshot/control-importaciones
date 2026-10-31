@@ -43,7 +43,9 @@ export function parseAmazon(em) {
     const ids = [...new Set(body.match(/\d{3}-\d{7}-\d{7}/g) || [])];
     const t = body.match(/Total\s*\n\s*([\d.,]+)\s*USD/i);
     const n = countOf(subject);
-    return { tipo: 'envio', id: em.id, date: sent, pedido: ids[0] || null, pedidos: ids, total: t ? money(t[1]) : null, llega: arrival(body, sent), n, label: kindLabel(subject, n) };
+    const tr = body.match(/(?:Rastrear paquete|Track package)\s*\n?\s*<?(https:\/\/www\.amazon\.com\/[^\s>]*progress-tracker[^\s>]*)/i);
+    const trackUrl = tr ? tr[1].replace(/&ref_=[^&]*/g, '').replace(/&vt=[^&]*/g, '') : null;
+    return { tipo: 'envio', id: em.id, date: sent, pedido: ids[0] || null, pedidos: ids, total: t ? money(t[1]) : null, llega: arrival(body, sent), n, label: kindLabel(subject, n), trackUrl };
   }
   return null;
 }
@@ -110,7 +112,7 @@ export function applyAmazon(data, raws, initIso) {
         let id = null, moved = null;
         // 1) Already in the app with this amount (typed by hand earlier, or a repeated e-mail)
         const hit = list().find(([, e]) => isAmz(e) && !pending(e) && near(e.total_compra, p.total) && (!AMZ_ID.test(e.pedido || '') || p.pedidos.includes(e.pedido)));
-        if (hit) { id = hit[0]; const e = env[id]; env[id] = { ...e, pedido: AMZ_ID.test(e.pedido || '') ? e.pedido : p.pedido, cobro: 'cobrado', f_envio_tienda: e.f_envio_tienda || caracasDay(p.date), f_aprox_miami: e.f_aprox_miami || p.llega, actualizado: now() }; }
+        if (hit) { id = hit[0]; const e = env[id]; env[id] = { ...e, pedido: AMZ_ID.test(e.pedido || '') ? e.pedido : p.pedido, cobro: 'cobrado', f_envio_tienda: e.f_envio_tienda || caracasDay(p.date), f_aprox_miami: e.f_aprox_miami || p.llega, amz_track_url: e.amz_track_url || p.trackUrl, actualizado: now() }; }
         else if (!backfill) {
           // 2) The order waiting to be charged: same order number first, then orders typed by hand without one
           const cands = list().filter(([, e]) => isAmz(e) && pending(e) && (p.pedidos.includes(e.pedido) || !AMZ_ID.test(e.pedido || '')))
@@ -122,14 +124,14 @@ export function applyAmazon(data, raws, initIso) {
             const whole = (sel && sel.length === its.length) || (!sel && near(pe.total_compra, p.total, 0.06));
             if (whole) {
               id = pid; moved = its;
-              env[pid] = { ...pe, estado: 'En espera', cobro: 'cobrado', pedido: AMZ_ID.test(pe.pedido || '') ? pe.pedido : p.pedido, total_compra: p.total, f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pe.f_aprox_miami, actualizado: now() };
+              env[pid] = { ...pe, estado: 'En espera', cobro: 'cobrado', pedido: AMZ_ID.test(pe.pedido || '') ? pe.pedido : p.pedido, total_compra: p.total, f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pe.f_aprox_miami, amz_track_url: p.trackUrl, actualizado: now() };
               done = true; break;
             }
             if (sel) { // part of the order: those items become their own package
               moved = sel.map((k) => its[k]); const rest = its.filter((_, k) => !sel.includes(k));
               id = newId();
               env[id] = { estado: 'En espera', tienda: pe.tienda || 'Amazon', pedido: AMZ_ID.test(pe.pedido || '') ? pe.pedido : p.pedido, parte_de: pid, f_compra: pe.f_compra, total_compra: p.total, metodo: pe.metodo || 'aereo', cobro: 'cobrado',
-                f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pe.f_aprox_miami, items: moved, articulos: moved.map((x) => x.n).filter(Boolean).join('\n') || null, notas: null, creado: now(), actualizado: now() };
+                f_envio_tienda: caracasDay(p.date), f_aprox_miami: p.llega || pe.f_aprox_miami, amz_track_url: p.trackUrl, items: moved, articulos: moved.map((x) => x.n).filter(Boolean).join('\n') || null, notas: null, creado: now(), actualizado: now() };
               const left = Math.round((Number(pe.total_compra) - p.total) * 100) / 100;
               env[pid] = { ...pe, pedido: AMZ_ID.test(pe.pedido || '') ? pe.pedido : p.pedido, items: rest, articulos: rest.map((x) => x.n).filter(Boolean).join('\n') || null, total_compra: taxedTotal(rest, rate) ?? (left > 0 ? left : pe.total_compra), actualizado: now() };
               done = true; break;
@@ -139,7 +141,7 @@ export function applyAmazon(data, raws, initIso) {
             // 3) No prices to compare: same order -> split by count; nothing known -> new package
             const pend = cands.find(([, e]) => p.pedidos.includes(e.pedido));
             id = newId();
-            env[id] = { estado: 'En espera', tienda: 'Amazon', pedido: p.pedido, parte_de: pend ? pend[0] : null, f_compra: pend ? pend[1].f_compra : caracasDay(p.date), total_compra: p.total, metodo: 'aereo', cobro: 'cobrado', f_envio_tienda: caracasDay(p.date),
+            env[id] = { estado: 'En espera', tienda: 'Amazon', pedido: p.pedido, parte_de: pend ? pend[0] : null, f_compra: pend ? pend[1].f_compra : caracasDay(p.date), total_compra: p.total, metodo: 'aereo', cobro: 'cobrado', f_envio_tienda: caracasDay(p.date), amz_track_url: p.trackUrl,
               f_aprox_miami: p.llega, articulos: p.label, items: [], n_articulos: p.n, notas: null, creado: now(), actualizado: now() };
             if (pend) {
               const rest = Math.round((Number(pend[1].total_compra) - p.total) * 100) / 100;
@@ -148,7 +150,7 @@ export function applyAmazon(data, raws, initIso) {
             }
           }
         }
-        if (id && !backfill && fresh(p.date)) msgs.push({ title: '🚚 Cobrado y enviado: ' + what(moved || env[id].items, p.label), body: '$' + p.total.toFixed(2) + ' · Ahora: En espera' + (p.llega ? ' · Llega a Miami aprox. el ' + day(p.llega) : ''), tag: 'am-' + id });
+        if (id && !backfill && fresh(p.date)) msgs.push({ title: '🚚 Cobrado y enviado: ' + what(moved || env[id].items, p.label), body: '$' + p.total.toFixed(2) + ' · Ahora: En espera' + (p.llega ? ' · Llega a Miami aprox. el ' + day(p.llega) : '') + ' · Abre la app para ver el tracking y hacer la prealerta', tag: 'am-' + id });
       }
       st.applied[r.id] = 1;
     } else if (r.kind === 'binance') {

@@ -499,6 +499,12 @@ details.auto > .fields { padding: 0 14px 14px; }
 .iprice-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .iprice-row span { font-size: 12.5px; color: var(--muted); }
 .iprice-row .iprice { flex: 1 1 120px; }
+.prebox { display: flex; flex-direction: column; gap: 10px; background: #eef8f8; border: 1px solid #bfe3df; border-radius: 12px; padding: 10px 12px; margin: 4px 0 12px; font-size: 13px; }
+.prebox .pt { display: flex; flex-direction: column; gap: 2px; }
+.prebox .pt span { color: var(--muted); }
+.prebox .pr { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.prebox .pr input { flex: 1 1 180px; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; font-size: 16px; }
+.prebox.done { flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: center; background: #f2fbf6; border-color: #cdebdc; color: #12805c; padding: 8px 12px; }
 </style>
 </head>
 <body>
@@ -884,9 +890,12 @@ details.auto > .fields { padding: 0 14px 14px; }
     { k: 'factura_gc', l: 'Gold Coast $', r: 1, sort: (e) => n(e.factura_gc) ?? -1 },
     { k: 'total', l: 'Total', r: 1, sort: (e) => totalOf(e) ?? -1 },
   ];
+  // Shipped by the store, not yet at Gold Coast, and no pre-alert made yet.
+  const needsPre = (e) => e.estado === 'En espera' && !e.prealerta && !e.recibo;
   function visible() {
     let L = (S.env || []).slice();
     if (S.filter === 'activos') L = L.filter((e) => e.estado !== 'Terminado');
+    else if (S.filter === 'prealerta') L = L.filter(needsPre);
     else if (S.filter !== 'todos') L = L.filter((e) => e.estado === S.filter);
     const q = S.q.trim().toLowerCase();
     if (q) L = L.filter((e) => [itemsOf(e).map((i) => i.n).join(' '), e.articulos, e.tracking, e.recibo, e.tienda, e.embarque, e.pedido, e.notas].join(' ').toLowerCase().includes(q));
@@ -897,7 +906,8 @@ details.auto > .fields { padding: 0 14px 14px; }
   function renderChips() {
     const box = $('chips'); box.textContent = '';
     const L = S.env || [];
-    const opts = [['activos', 'En curso', L.filter((e) => e.estado !== 'Terminado').length, 'var(--ink)'], ...ESTADOS.map((e) => [e.k, e.k, L.filter((x) => x.estado === e.k).length, e.c]), ['todos', 'Todos', L.length, 'var(--muted)']];
+    const pre = L.filter(needsPre).length;
+    const opts = [['activos', 'En curso', L.filter((e) => e.estado !== 'Terminado').length, 'var(--ink)'], ...(pre ? [['prealerta', 'Por prealertar', pre, '#0e7c86']] : []), ...ESTADOS.map((e) => [e.k, e.k, L.filter((x) => x.estado === e.k).length, e.c]), ['todos', 'Todos', L.length, 'var(--muted)']];
     opts.forEach(([k, l, c, col]) => box.append(h('button', { class: 'chip', type: 'button', 'aria-pressed': S.filter === k, style: '--c:' + col, onclick: () => { S.filter = k; renderChips(); renderLedger(); } }, h('i'), l, h('b', null, String(c)))));
   }
   function statusOf(e) {
@@ -964,7 +974,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const pick = parent && itemsOf(parent).length && have < want && !S.ro ? h('div', { class: 'splitbox' },
       h('div', null, h('b', null, 'Envío separado del pedido ' + (e.pedido ? '…' + e.pedido.slice(-7) : '')), h('span', null, 'Amazon mandó ' + want + (want === 1 ? ' artículo' : ' artículos') + ' en esta caja. Elige cuál' + (want === 1 ? '' : 'es') + ' de los ' + itemsOf(parent).length + ' del pedido.')),
       h('button', { class: 'pill y', type: 'button', onclick: () => openPicker(e, parent) }, 'Elegir artículos de este envío')) : null;
-    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, pick, pick && !have ? null : car), acts);
+    const body = h('div', { class: 'obody' }, h('div', { style: 'min-width:0' }, h('div', { class: 'ostatus ' + st.c }, st.t), st.s ? h('div', { class: 'osub' }, st.s) : null, pick, preBox(e), pick && !have ? null : car), acts);
     const foot = h('div', { class: 'ofoot' },
       h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra))), e.cobro === 'pendiente' ? h('i', { class: 'cobro pend' }, 'pendiente de cobro') : n(e.cobro_binance) != null ? h('i', { class: 'cobro ok', title: 'Cobro confirmado por Binance' + (e.cobro_fecha ? ' el ' + fmtL(e.cobro_fecha) : '') }, '✓ cobrado') : null),
       n(e.factura_gc) != null ? h('span', null, 'Gold Coast ', h('b', null, usd(n(e.factura_gc)))) : (() => { const g = gcEstimate(e); return g ? h('span', { class: 'gcest', title: g.why }, 'Gold Coast aprox. ', h('b', null, '≈ ' + usd(g.usd))) : h('span', null, 'Gold Coast ', h('b', null, 'sin facturar')); })(),
@@ -1416,6 +1426,33 @@ details.auto > .fields { padding: 0 14px 14px; }
     await S.db.collection('envios').doc(parent.id).set({ ...strip(parent), items: rest, articulos: names(rest), actualizado: new Date().toISOString() });
     closePicker(); toast(moved.length === 1 ? '1 artículo movido' : moved.length + ' artículos movidos');
   });
+
+
+  /* ---------- Pre-alert for Gold Coast ---------- */
+  function preText(e) {
+    const L = itemsOf(e).map((x) => x.n).filter(Boolean);
+    return ['Tracking: ' + (e.tracking || '—'), 'Tienda: ' + (e.tienda || 'Amazon'), 'Valor: ' + usd(n(e.total_compra)), 'Contenido: ' + (L.length ? L.length + (L.length === 1 ? ' artículo' : ' artículos') + ' (' + L.join('; ') + ')' : (e.articulos || '')), e.pedido ? 'Pedido: ' + e.pedido : null, 'Envío: ' + (e.metodo === 'maritimo' ? 'Marítimo' : 'Aéreo')].filter(Boolean).join('\n');
+  }
+  async function copy(text) { try { await navigator.clipboard.writeText(text); return true; } catch (err) { const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e2) { /* no clipboard */ } ta.remove(); return ok; } }
+  function preBox(e) {
+    if (e.estado !== 'En espera' || e.recibo || S.ro) return null;
+    if (e.prealerta) return h('div', { class: 'prebox done' }, h('span', null, '✓ Prealerta hecha el ' + fmtL(e.prealerta) + (e.tracking ? ' · Tracking ' : '')), e.tracking ? h('b', { class: 'mono' }, e.tracking) : null);
+    const url = e.amz_track_url || (e.pedido && /^\d{3}-\d{7}-\d{7}$/.test(e.pedido) ? 'https://www.amazon.com/your-orders/order-details?orderID=' + e.pedido : null);
+    if (!e.tracking) {
+      const inp = h('input', { type: 'text', class: 'mono', placeholder: 'Pega aquí el tracking', autocomplete: 'off', 'aria-label': 'Tracking' });
+      const save = async () => { const v = inp.value.replace(/\s+/g, '').toUpperCase(); if (v.length < 8) { toast('Ese tracking parece incompleto'); return; } await S.db.collection('envios').doc(e.id).set({ ...strip(e), tracking: v, actualizado: new Date().toISOString() }); toast('Tracking guardado'); };
+      inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') save(); });
+      return h('div', { class: 'prebox' },
+        h('div', { class: 'pt' }, h('b', null, 'Falta el tracking para la prealerta'), h('span', null, url ? 'Ábrelo en Amazon, copia el número y pégalo aquí.' : 'Cópialo de Amazon y pégalo aquí.')),
+        h('div', { class: 'pr' }, url ? h('a', { class: 'pill', href: url, target: '_blank', rel: 'noopener' }, 'Ver tracking en Amazon') : null, inp, h('button', { class: 'pill y', type: 'button', onclick: save }, 'Guardar')));
+    }
+    return h('div', { class: 'prebox' },
+      h('div', { class: 'pt' }, h('b', null, 'Lista para la prealerta'), h('span', null, 'Tracking ', h('b', { class: 'mono' }, e.tracking), ' · ' + usd(n(e.total_compra)))),
+      h('div', { class: 'pr' },
+        h('button', { class: 'pill y', type: 'button', onclick: async () => { toast((await copy(preText(e))) ? 'Datos copiados: pégalos en Gold Coast' : 'No se pudo copiar'); } }, 'Copiar datos para Gold Coast'),
+        h('button', { class: 'pill', type: 'button', onclick: () => copy(e.tracking).then((ok) => toast(ok ? 'Tracking copiado' : 'No se pudo copiar')) }, 'Copiar tracking'),
+        h('button', { class: 'pill g', type: 'button', onclick: async () => { await S.db.collection('envios').doc(e.id).set({ ...strip(e), prealerta: todayISO(), actualizado: new Date().toISOString() }); toast('Prealerta marcada'); } }, '✓ Ya la hice')));
+  }
 
   /* ---------- Gold Coast estimate (before the invoice arrives) ---------- */
   // Uses the weight on the Gold Coast receipt when there is one; otherwise the Amazon weight of each item
