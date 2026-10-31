@@ -525,7 +525,6 @@ details.auto > .fields { padding: 0 14px 14px; }
 .tcard .tt b { font-size: 14.5px; }
 .tcard .tt span { font-size: 12.5px; color: var(--muted); }
 .tcard .tn { font-size: 20px; font-weight: 800; color: var(--c); }
-.ofoot .landed b { color: var(--ink); }
 @media (max-width: 680px) { .todo { grid-template-columns: 1fr 1fr; gap: 8px; } .tcard { grid-template-columns: minmax(0, 1fr) auto; padding: 9px 10px; border-radius: 12px; } .tcard .ti { display: none; } .tcard .tt b { font-size: 13.5px; } .tcard .tt span { font-size: 11.5px; } .tcard .tn { font-size: 18px; } }
 </style>
 </head>
@@ -1003,7 +1002,6 @@ details.auto > .fields { padding: 0 14px 14px; }
       h('span', null, 'Compra ', h('b', null, usd(n(e.total_compra))), e.cobro === 'pendiente' ? h('i', { class: 'cobro pend' }, 'pendiente de cobro') : n(e.cobro_binance) != null ? h('i', { class: 'cobro ok', title: 'Cobro confirmado por Binance' + (e.cobro_fecha ? ' el ' + fmtL(e.cobro_fecha) : '') }, '✓ cobrado') : null),
       n(e.factura_gc) != null ? h('span', null, 'Gold Coast ', h('b', null, usd(n(e.factura_gc)))) : (() => { const g = gcEstimate(e); return g ? h('span', { class: 'gcest', title: g.why }, 'Gold Coast aprox. ', h('b', null, '≈ ' + usd(g.usd))) : h('span', null, 'Gold Coast ', h('b', null, 'sin facturar')); })(),
       n(e.peso_lb) != null ? h('span', null, 'Peso ', h('b', null, n(e.peso_lb).toFixed(2) + ' lb')) : null,
-      (() => { const buy = n(e.total_compra); if (buy == null) return null; const g = n(e.factura_gc) ?? (gcEstimate(e) || {}).usd; return g != null ? h('span', { class: 'landed', title: 'Lo que pagaste en la tienda más el flete de Gold Coast' }, 'Costo total ', h('b', null, (n(e.factura_gc) == null ? '≈ ' : '') + usd(Math.round((buy + g) * 100) / 100))) : null; })(),
       e.tracking ? h('span', null, 'Tracking ', h('b', { class: 'mono' }, e.tracking)) : null);
     const stc = (ESTADOS.find((x) => x.k === (e.estado || 'En espera')) || ESTADOS[0]).c;
     return h('article', { class: 'order', style: '--sc:' + stc }, head, body, foot);
