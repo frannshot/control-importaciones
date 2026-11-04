@@ -1497,8 +1497,17 @@ details.auto > .fields { padding: 0 14px 14px; }
   const BOOK = /\b(libro|libros|book|novel|novela|edition|edición|tapa (blanda|dura)|paperback|hardcover)\b/i;
   function gcEstimate(e) {
     if (n(e.factura_gc) != null) return null;
-    const sea = e.metodo === 'maritimo';
-    const rate = n(sea ? S.cfg.sea_rate : S.cfg.air_rate), min = n(sea ? S.cfg.sea_min : S.cfg.air_min) || 0;
+    if (e.metodo === 'maritimo') {
+      // Sea freight is charged by volume (cubic feet), not by weight.
+      const rate = n(S.cfg.sea_rate); if (!rate) return null;
+      const minFt = n(S.cfg.vol_min) || 1;
+      let ft, why;
+      if (n(e.volumen_cuft) != null) { ft = Math.max(minFt, n(e.volumen_cuft)); why = 'Con el volumen del recibo de Gold Coast: ' + n(e.volumen_cuft) + ' ft³ × $' + rate + '/ft³'; }
+      else { const k = itemsOf(e).length || 1; ft = Math.max(minFt, Math.round(k * 0.12 * 100) / 100); why = 'Estimado marítimo: ' + ft + ' ft³ × $' + rate + '/ft³ (Gold Coast mide la caja al recibirla)'; }
+      const usdv = Math.round(Math.max(n(S.cfg.sea_min) || 0, ft * rate) * 100) / 100;
+      return { usd: usdv, lb: n(e.peso_lb) || 0, ft, why };
+    }
+    const rate = n(S.cfg.air_rate), min = n(S.cfg.air_min) || 0;
     if (!rate) return null;
     let lb, why;
     if (n(e.peso_lb) != null) { lb = n(e.peso_lb); why = 'Con el peso del recibo de Gold Coast: ' + lb.toFixed(2) + ' lb'; }
@@ -1510,6 +1519,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     }
     return { usd: Math.round(Math.max(min, lb * rate) * 100) / 100, lb, why };
   }
+
   /* ---------- Order detail as an image (PNG) ---------- */
   const cssVar = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || '#888';
   const loadImg = (src) => new Promise((res) => { if (!src) return res(null); const im = new Image(); im.crossOrigin = 'anonymous'; const to = setTimeout(() => res(null), 9000); im.onload = () => { clearTimeout(to); res(im); }; im.onerror = () => { clearTimeout(to); res(null); }; im.src = src; });
@@ -1583,7 +1593,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const buy = n(e.total_compra), gcEst = n(e.factura_gc) == null ? gcEstimate(e) : null, gc = n(e.factura_gc) ?? (gcEst ? gcEst.usd : null);
     c.fillStyle = '#fff'; c.beginPath(); c.roundRect(P, y, W - P * 2, 100, 12); c.fill();
     const row = (k, v, yy, big) => { c.fillStyle = big ? '#1f2933' : '#6b7380'; c.font = F(big ? 700 : 400, big ? 16 : 14); c.fillText(k, P + 16, yy); c.textAlign = 'right'; c.fillStyle = '#1f2933'; c.font = F(700, big ? 18 : 14); c.fillText(v, W - P - 16, yy); c.textAlign = 'left'; };
-    row(e.cobro === 'pendiente' ? 'Compra en la tienda (pendiente de cobro)' : n(e.cobro_binance) != null ? 'Compra en la tienda (cobrada ✓ Binance)' : 'Compra en la tienda', usd(buy), y + 28); row(gcEst ? 'Flete Gold Coast (aprox. ' + gcEst.lb.toFixed(1) + ' lb)' : 'Flete Gold Coast', gc != null ? (gcEst ? '≈ ' : '') + usd(gc) : 'sin facturar', y + 52);
+    row(e.cobro === 'pendiente' ? 'Compra en la tienda (pendiente de cobro)' : n(e.cobro_binance) != null ? 'Compra en la tienda (cobrada ✓ Binance)' : 'Compra en la tienda', usd(buy), y + 28); row(gcEst ? 'Flete Gold Coast (aprox. ' + (gcEst.ft ? gcEst.ft + ' ft³' : gcEst.lb.toFixed(1) + ' lb') + ')' : 'Flete Gold Coast', gc != null ? (gcEst ? '≈ ' : '') + usd(gc) : 'sin facturar', y + 52);
     c.strokeStyle = '#efeae1'; c.lineWidth = 1; c.beginPath(); c.moveTo(P + 16, y + 66); c.lineTo(W - P - 16, y + 66); c.stroke();
     row(gcEst ? 'Costo total aprox.' : 'Costo total', buy != null ? (gcEst ? '≈ ' : '') + usd(buy + (gc || 0)) : '—', y + 88, true);
     y += 120;

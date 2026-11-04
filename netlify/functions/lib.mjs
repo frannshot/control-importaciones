@@ -116,7 +116,10 @@ export function docMessages(data, events) {
     if (!fresh(d.email_date, 4)) continue; // do not announce old e-mails
     if (d.tipo === 'recibo') {
       const lb = b.peso_lb != null ? Number(b.peso_lb) : null; const r = rates(data);
-      out.push({ title: '📦 Llegó a Miami', body: what(b) + ' · Recibo ' + d.recibo + (lb != null ? ' · ' + lb.toFixed(2) + ' lb · Gold Coast aprox. ' + money(Math.max(r.min, lb * r.rate)) : ''), tag: 'gc-' + id });
+      const tar = (data.config && data.config.tarifas) || {}; const sea = b.metodo === 'maritimo' && Number(tar.sea_rate) > 0;
+      const ft = b.volumen_cuft != null ? Math.max(Number(tar.vol_min) || 1, Number(b.volumen_cuft)) : null;
+      const est = sea ? (ft != null ? ' · ' + ft + ' ft³ · Gold Coast aprox. ' + money(Math.max(Number(tar.sea_min) || 0, ft * Number(tar.sea_rate))) : '') : (lb != null ? ' · ' + lb.toFixed(2) + ' lb · Gold Coast aprox. ' + money(Math.max(r.min, lb * r.rate)) : '');
+      out.push({ title: '📦 Llegó a Miami', body: what(b) + ' · Recibo ' + d.recibo + est, tag: 'gc-' + id });
     } else if (d.tipo === 'factura' && d.total != null) {
       out.push({ title: '🧾 Factura de Gold Coast: ' + money(d.total), body: what(b) + (d.cobrado != null ? ' · ' + d.cobrado + ' ' + (d.cobrado_unidad || 'lb').toLowerCase() : '') + (d.embarque ? ' · Embarque ' + d.embarque : ''), tag: 'gc-' + id });
     }
