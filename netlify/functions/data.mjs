@@ -2,7 +2,8 @@
 // GET ?since=REV          -> { same: true, rev } or { data, rev }
 // POST { ops: [{ col, id, body|null }] }  -> apply writes (null deletes)
 // POST { replace: data }  -> replace everything (first upload or restore), then re-apply Gold Coast docs
-import { authorized, json, cors, store, loadData, saveData, emptyData, applyDocs, COLS } from './lib.mjs';
+import { authorized, json, cors, store, loadData, saveData, emptyData, applyDocs, COLS, notify } from './lib.mjs';
+import { reconcile } from './amazon.mjs';
 
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -36,6 +37,10 @@ export default async (req) => {
       else if (op.body && typeof op.body === 'object') data[op.col][op.id] = op.body;
     }
   } else return json({ error: 'Nada que hacer' }, 400);
+  // your new purchases may complete an Amazon order or a charge that arrived earlier
+  let msgs = [];
+  try { if (data.meta.amz) msgs = reconcile(data, data.meta.amz.init || '2026-10-31T04:00:00.000Z'); } catch (e) { msgs = []; }
   const rev = await saveData(s, data);
+  if (msgs.length) await notify(s, msgs);
   return json({ ok: true, rev });
 };

@@ -526,6 +526,35 @@ details.auto > .fields { padding: 0 14px 14px; }
 .tcard .tt span { font-size: 12.5px; color: var(--muted); }
 .tcard .tn { font-size: 20px; font-weight: 800; color: var(--c); }
 @media (max-width: 680px) { .todo { grid-template-columns: 1fr 1fr; gap: 8px; } .tcard { grid-template-columns: minmax(0, 1fr) auto; padding: 9px 10px; border-radius: 12px; } .tcard .ti { display: none; } .tcard .tt b { font-size: 13.5px; } .tcard .tt span { font-size: 11.5px; } .tcard .tn { font-size: 18px; } }
+.kgrp { display: flex; align-items: center; gap: 8px; margin: 10px 2px 2px; font-size: 13px; }
+.kgrp .cobro { font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 1px 6px; }
+.kgrp .cobro.pend { color: #8a5a00; background: #fff1d6; }
+.kgrp .cobro.ok { color: #12805c; background: #e3f5ec; }
+.prow small { color: var(--muted); font-size: 12.5px; }
+.ksheet footer { align-items: center; justify-content: space-between; }
+#k-track { font-size: 16px; }
+.lq { margin-bottom: 22px; }
+.lq-in { display: flex; flex-direction: column; gap: 10px; background: #fff; border-radius: 14px; box-shadow: var(--sh-1); padding: 12px; }
+.lq-in textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 16px; resize: vertical; }
+.lq-in .row { display: flex; gap: 8px; justify-content: flex-end; }
+.lq-in select { border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; background: #fff; font: inherit; }
+.lqlist { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.lqrow { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; background: #fff; border-radius: 12px; padding: 8px 12px; box-shadow: var(--sh-1); }
+.lqrow .thumb { width: 56px; height: 56px; border: 0; background: transparent; }
+.lqn { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lqn a { color: var(--link); font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lqn span { color: var(--muted); font-size: 12px; }
+.lqw { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.lqw input { width: 70px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 16px; text-align: right; }
+.lqrow .x { border: 0; background: transparent; font-size: 20px; color: var(--muted); cursor: pointer; }
+.lqsum { display: grid; gap: 8px; background: #fff; border-radius: 14px; box-shadow: var(--sh-1); padding: 12px 14px; margin-top: 12px; }
+.lqsum > div { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+.lqsum span { color: var(--muted); font-size: 13.5px; }
+.lqsum b { font-size: 15px; }
+.lqsum small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.lqsum .tot { border-top: 1px solid var(--line); padding-top: 8px; }
+.lqsum .tot b { font-size: 18px; }
+@media (max-width: 520px) { .lqrow { grid-template-columns: 48px minmax(0, 1fr) auto; } .lqrow .lqw { grid-column: 2; } .lqrow .x { grid-row: 1; grid-column: 3; } }
 </style>
 </head>
 <body>
@@ -563,6 +592,7 @@ details.auto > .fields { padding: 0 14px 14px; }
           <option value="total:desc">Mayor total</option>
           <option value="estado:asc">Por estado</option>
         </select>
+        <button class="btn" id="newbox" type="button">📦 Nuevo paquete</button>
         <button class="btn primary" id="new" type="button">+ Nuevo pedido</button>
       </div>
     </div>
@@ -617,6 +647,14 @@ details.auto > .fields { padding: 0 14px 14px; }
 
   <!-- COTIZADOR -->
   <main id="v-cotizar" class="view" hidden>
+    <section class="lq">
+      <div class="sect"><h2>Cotizar desde Amazon</h2><span class="meta">Pega uno o varios enlaces · se calcula con tus facturas reales</span></div>
+      <div class="lq-in">
+        <textarea id="lq-urls" rows="2" placeholder="Pega aquí los enlaces de Amazon, uno por línea"></textarea>
+        <div class="row"><select id="lq-mode" aria-label="Envío"><option value="aereo">Aéreo</option><option value="maritimo">Marítimo</option></select><button class="btn primary" id="lq-go" type="button">Cotizar</button></div>
+      </div>
+      <div id="lq-out"></div>
+    </section>
     <div class="duo">
       <section>
         <div class="sect"><h2>Calculadora</h2><span class="meta">Con tus tarifas</span></div>
@@ -760,6 +798,18 @@ details.auto > .fields { padding: 0 14px 14px; }
   </div>
 </div>
 
+<div class="scrim" id="kscrim" hidden>
+  <div class="sheet ksheet" role="dialog" aria-modal="true" aria-labelledby="k-title">
+    <header><h2 id="k-title">Nuevo paquete</h2><button class="x" id="k-x" type="button" aria-label="Cerrar">×</button></header>
+    <div class="body">
+      <label class="f wide"><span>Tracking (el que muestra Amazon)</span><input id="k-track" type="text" class="mono" autocomplete="off" placeholder="Pega aquí el tracking"></label>
+      <p class="hint" style="margin:12px 0 8px">Marca los artículos que van en esta caja. Pueden ser de pedidos y días distintos.</p>
+      <div class="plist" id="k-list"></div>
+    </div>
+    <footer><div class="row"><button class="btn primary" id="k-ok" type="button" disabled>Crear paquete</button><button class="btn ghost" id="k-cancel" type="button">Cancelar</button></div><span class="hint" id="k-count"></span></footer>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -838,6 +888,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     const R = L.filter(ready), cash = R.reduce((s, e) => s + (n(e.factura_gc) || 0), 0);
     const cards = [
       [R.length, '🏁', 'Por retirar', (k) => k + (k === 1 ? ' paquete' : ' paquetes') + (cash ? ' · lleva ' + usd(cash) : ''), 'retirar', 'var(--ok)'],
+      [L.filter((e) => e.estado === 'En espera' && !e.tracking && !e.recibo).length, '📦', 'Falta tracking', (k) => k + (k === 1 ? ' compra cobrada sin paquete' : ' compras cobradas sin paquete'), 'sintrack', 'var(--st-wait)'],
       [L.filter(needsItems).length, '✏️', 'Completar', (k) => k + (k === 1 ? ' pedido' : ' pedidos') + ' sin enlaces o precios', 'completar', 'var(--st-pay)'],
       [L.filter(needsCheck).length, '⚠️', 'Revisar', (k) => k + (k === 1 ? ' retrasado o sin factura' : ' retrasados o sin factura'), 'revisar', 'var(--warn)'],
     ].filter(([k]) => k > 0);
@@ -918,6 +969,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     let L = (S.env || []).slice();
     if (S.filter === 'activos') L = L.filter((e) => e.estado !== 'Terminado');
     else if (S.filter === 'retirar') L = L.filter(ready);
+    else if (S.filter === 'sintrack') L = L.filter((e) => e.estado === 'En espera' && !e.tracking && !e.recibo);
     else if (S.filter === 'completar') L = L.filter(needsItems);
     else if (S.filter === 'revisar') L = L.filter(needsCheck);
     else if (S.filter !== 'todos') L = L.filter((e) => e.estado === S.filter);
@@ -1128,7 +1180,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
     try { new URL(url); } catch (e) { return { error: 'Ese enlace no es válido' }; }
     const withTimeout = async (u, ms) => { const ac = new AbortController(); const to = setTimeout(() => ac.abort(), ms); try { const r = await fetch(u, { signal: ac.signal }); return r; } finally { clearTimeout(to); } };
-    let finalUrl = url, img = null, title = null, asin = amazonAsin(url), got = false, w = null, price = null, book = false;
+    let finalUrl = url, img = null, title = null, asin = amazonAsin(url), got = false, w = null, price = null, book = false, dims = null;
     // 1) Our own preview service (Netlify function, same site).
     try {
       const r = await withTimeout('/.netlify/functions/preview?url=' + encodeURIComponent(url), 25000);
@@ -1140,6 +1192,7 @@ details.auto > .fields { padding: 0 14px 14px; }
         if (n(j.weight_lb) != null) w = n(j.weight_lb);
         if (n(j.price) != null) price = n(j.price);
         if (j.book) book = true;
+        if (Array.isArray(j.dims)) dims = j.dims;
         if (j.image && await probeImg(j.image)) img = j.image;
       }
     } catch (e) { /* not available here */ }
@@ -1157,7 +1210,7 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (!img && asin && await probeImg(asinImg(asin))) img = asinImg(asin);
     if (!title || BAD_TITLE.test(title)) title = slugName(finalUrl) || slugName(url) || null;
     if (!img && !title) return { error: 'No pude leer ese enlace. Prueba de nuevo en un momento.' };
-    return { img, title, url: finalUrl, w, price, book };
+    return { img, title, url: finalUrl, w, price, book, dims };
   }
 
   let ED_ITEMS = [];
@@ -1452,18 +1505,78 @@ details.auto > .fields { padding: 0 14px 14px; }
   });
 
 
+
+  /* ---------- Packages: a box with a tracking, built from items of one or more purchases ---------- */
+  const unboxed = (e) => (e.estado === 'Por cobrar' || e.estado === 'En espera') && !e.tracking && !e.recibo;
+  let PKG = null;
+  function openBox(pre) {
+    const src = (S.env || []).filter(unboxed).sort((a, b) => String(b.f_compra || '').localeCompare(String(a.f_compra || '')));
+    if (!src.length) { toast('No hay artículos sin paquete'); return; }
+    PKG = { sel: new Set() };
+    $('k-track').value = ''; const list = $('k-list'); list.textContent = '';
+    src.forEach((e) => {
+      const its = itemsOf(e).length ? itemsOf(e) : [{ n: e.articulos || 'Compra sin artículos', img: null }];
+      const cobr = e.estado === 'En espera' || e.cobro === 'cobrado';
+      list.append(h('div', { class: 'kgrp' }, h('b', null, (e.pedido ? 'Pedido ' + String(e.pedido) : 'Compra del ' + fmtL(e.f_compra))), h('span', { class: 'cobro ' + (cobr ? 'ok' : 'pend') }, cobr ? '✓ cobrado' : 'por cobrar')));
+      its.forEach((it, i) => {
+        const key = e.id + '#' + i;
+        const box = h('input', { type: 'checkbox', onchange: (ev) => { ev.target.checked ? PKG.sel.add(key) : PKG.sel.delete(key); row.classList.toggle('on', ev.target.checked); upd(); } });
+        const price = n(it.p) != null ? usd(Math.round(n(it.p) * (1 + TAX()) * 100) / 100) : '';
+        const row = h('label', { class: 'prow' }, box, thumbEl(it.img), h('span', null, it.n || 'Artículo', price ? h('small', null, ' · ' + price) : null));
+        if (pre && pre.id === e.id) { box.checked = true; PKG.sel.add(key); row.classList.add('on'); }
+        list.append(row);
+      });
+    });
+    const upd = () => { const k = PKG.sel.size; $('k-count').textContent = k ? k + (k === 1 ? ' artículo' : ' artículos') : ''; $('k-ok').disabled = !k; };
+    upd(); $('kscrim').hidden = false; setTimeout(() => $('k-track').focus(), 50);
+  }
+  const closeBox = () => { $('kscrim').hidden = true; PKG = null; };
+  $('newbox').addEventListener('click', () => openBox(null));
+  $('k-x').addEventListener('click', closeBox); $('k-cancel').addEventListener('click', closeBox);
+  $('kscrim').addEventListener('click', (ev) => { if (ev.target === $('kscrim')) closeBox(); });
+  $('k-ok').addEventListener('click', async () => {
+    if (!PKG) return;
+    const tr = $('k-track').value.replace(/\s+/g, '').toUpperCase();
+    if (tr.length < 8) { toast('Pega el tracking de la caja'); $('k-track').focus(); return; }
+    const now = new Date().toISOString(); const taxed = (it) => (n(it.p) != null ? Math.round(n(it.p) * (1 + TAX()) * 100) / 100 : null);
+    const bySrc = {}; [...PKG.sel].forEach((k) => { const [id, i] = k.split('#'); (bySrc[id] = bySrc[id] || []).push(Number(i)); });
+    const srcs = Object.keys(bySrc).map((id) => (S.env || []).find((x) => x.id === id)).filter(Boolean);
+    const whole = srcs.length === 1 && bySrc[srcs[0].id].length === Math.max(1, itemsOf(srcs[0]).length);
+    if (whole) { // the whole purchase is this box
+      const e = srcs[0];
+      await S.db.collection('envios').doc(e.id).set({ ...strip(e), tracking: tr, estado: e.estado === 'Por cobrar' ? 'En espera' : e.estado, actualizado: now });
+      closeBox(); toast('Paquete creado: ahora copia los datos para la prealerta'); return;
+    }
+    const moved = []; let total = 0; let exact = true; const peds = new Set(); let first = null;
+    for (const e of srcs) {
+      const its = itemsOf(e); const idx = bySrc[e.id];
+      idx.forEach((i) => { const it = its[i]; if (!it) return; moved.push(it); const v = taxed(it); if (v == null) exact = false; total += v ?? (n(e.total_compra) || 0) / Math.max(1, its.length); });
+      if (e.pedido) String(e.pedido).split(' + ').forEach((p) => peds.add(p));
+      if (!first || String(e.f_compra || '') < String(first.f_compra || '')) first = e;
+      const rest = its.filter((_, i) => !idx.includes(i));
+      if (!rest.length) await S.db.collection('envios').doc(e.id).delete();
+      else {
+        const restTot = rest.every((x) => taxed(x) != null) ? Math.round(rest.reduce((s, x) => s + taxed(x), 0) * 100) / 100 : Math.round(((n(e.total_compra) || 0) * rest.length / its.length) * 100) / 100;
+        await S.db.collection('envios').doc(e.id).set({ ...strip(e), items: rest, articulos: rest.map((x) => x.n).filter(Boolean).join('\n') || null, total_compra: restTot, actualizado: now });
+      }
+    }
+    const allPaid = srcs.every((e) => e.estado === 'En espera' || e.cobro === 'cobrado');
+    await S.db.collection('envios').add({ estado: 'En espera', tienda: first.tienda || 'Amazon', pedido: [...peds].join(' + ') || null, f_compra: first.f_compra || todayISO(), metodo: first.metodo || 'aereo', tracking: tr,
+      items: moved, articulos: moved.map((x) => x.n).filter(Boolean).join('\n') || null, total_compra: Math.round(total * 100) / 100, cobro: allPaid ? 'cobrado' : null,
+      amz_track_url: srcs.map((e) => e.amz_track_url).find(Boolean) || null, f_aprox_miami: srcs.map((e) => e.f_aprox_miami).filter(Boolean).sort().pop() || null,
+      notas: exact ? null : 'Valor aproximado: faltaba el precio de algún artículo.', creado: now, actualizado: now });
+    closeBox(); toast('Paquete creado con ' + moved.length + (moved.length === 1 ? ' artículo' : ' artículos'));
+  });
+
   /* ---------- Pre-alert for Gold Coast ---------- */
   async function copy(text) { try { await navigator.clipboard.writeText(text); return true; } catch (err) { const ta = h('textarea', { style: 'position:fixed;opacity:0' }); ta.value = text; document.body.append(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e2) { /* no clipboard */ } ta.remove(); return ok; } }
   function preBox(e) {
     if (e.estado !== 'En espera' || e.recibo || S.ro) return null;
     const url = e.amz_track_url || (e.pedido && /^\d{3}-\d{7}-\d{7}$/.test(e.pedido) ? 'https://www.amazon.com/your-orders/order-details?orderID=' + e.pedido : null);
     if (!e.tracking) {
-      const inp = h('input', { type: 'text', class: 'mono', placeholder: 'Pega aquí el tracking', autocomplete: 'off', 'aria-label': 'Tracking' });
-      const save = async () => { const v = inp.value.replace(/\s+/g, '').toUpperCase(); if (v.length < 8) { toast('Ese tracking parece incompleto'); return; } await S.db.collection('envios').doc(e.id).set({ ...strip(e), tracking: v, actualizado: new Date().toISOString() }); toast('Tracking guardado'); };
-      inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') save(); });
       return h('div', { class: 'prebox' },
-        h('div', { class: 'pt' }, h('b', null, 'Agrega el tracking'), h('span', null, (url ? 'Ábrelo en Amazon, copia el número y pégalo aquí.' : 'Cópialo de Amazon y pégalo aquí.') + ' Luego te muestro los datos para la prealerta de Gold Coast.')),
-        h('div', { class: 'pr' }, url ? h('a', { class: 'pill', href: url, target: '_blank', rel: 'noopener' }, 'Ver tracking en Amazon') : null, inp, h('button', { class: 'pill y', type: 'button', onclick: save }, 'Guardar')));
+        h('div', { class: 'pt' }, h('b', null, 'Falta el tracking'), h('span', null, 'Cuando Amazon te muestre el tracking, toca "Agregar tracking", pégalo y marca qué artículos van en esa caja (pueden ser de pedidos distintos).')),
+        h('div', { class: 'pr' }, url ? h('a', { class: 'pill', href: url, target: '_blank', rel: 'noopener' }, 'Ver tracking en Amazon') : null, h('button', { class: 'pill y', type: 'button', onclick: () => openBox(e) }, 'Agregar tracking')));
     }
     // The same fields, in the same order, as Gold Coast's pre-alert form.
     const [y, m, d] = String(e.f_compra || todayISO()).split('-');
@@ -1490,6 +1603,85 @@ details.auto > .fields { padding: 0 14px 14px; }
     const its = itemsOf(e).filter((x) => x.n); const b = its.filter((x) => x.b || IS_BOOK.test(x.n)).length, o = L.length - b;
     return [b ? b + (b === 1 ? ' libro' : ' libros') : null, o ? o + (o === 1 ? ' artículo' : ' artículos') : null].filter(Boolean).join(' y ');
   }
+
+
+  /* ---------- Quote from Amazon links, calibrated with your own invoices ---------- */
+  const TYPICAL = [[/zapat|tenis|sneaker|shoe|bota|boot/i, 2.6, 'zapatos'], [/calcet|sock|cable|bater|battery|funda|case|cargador usb|adaptador|llavero/i, 0.6, 'accesorio pequeño'], [/monitor|c[aá]mara|camera|linterna|light|lente|lens|tr[ií]pode|tripod|micr[oó]fono|microphone|cargador|charger/i, 1.6, 'electrónica'], [/camis|shirt|pantal|pants|vestid|dress|ropa|hoodie|su[eé]ter/i, 1.0, 'ropa']];
+  const median = (L) => { const s = L.slice().sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
+  function calib() {
+    const done = (S.env || []).filter((e) => n(e.factura_gc) != null && n(e.peso_lb) != null && e.metodo !== 'maritimo' && itemsOf(e).length);
+    const perBook = [], ratio = [];
+    for (const e of done) {
+      const its = itemsOf(e);
+      if (its.every((x) => x.b || IS_BOOK.test(x.n || ''))) perBook.push(n(e.peso_lb) / its.length);
+      else if (its.every((x) => n(x.w) != null)) ratio.push(n(e.peso_lb) / its.reduce((s, x) => s + n(x.w), 0));
+    }
+    return { book: median(perBook), nBook: perBook.length, ratio: median(ratio), nRatio: ratio.length };
+  }
+  function itemWeight(it, C) {
+    const isBook = it.b || IS_BOOK.test(it.n || '');
+    if (isBook) {
+      if (C.book != null) return { lb: C.book, src: 'Promedio de tus libros (' + C.nBook + (C.nBook === 1 ? ' factura' : ' facturas') + ')', ok: 2 };
+      if (n(it.w) != null) return { lb: n(it.w) + 0.35, src: 'Peso de Amazon + caja', ok: 1 };
+      return { lb: 1.5, src: 'Promedio típico de un libro', ok: 0 };
+    }
+    if (n(it.w) != null) return C.ratio != null ? { lb: n(it.w) * C.ratio, src: 'Peso de Amazon ajustado con tus facturas', ok: 2 } : { lb: n(it.w) * 1.15 + 0.3, src: 'Peso de Amazon + caja', ok: 1 };
+    const t = TYPICAL.find(([re]) => re.test(it.n || ''));
+    return t ? { lb: t[1], src: 'Promedio típico: ' + t[2], ok: 0 } : { lb: 1.5, src: 'Promedio típico (sin categoría)', ok: 0 };
+  }
+  let LQ = [];
+  function renderLQ() {
+    const box = $('lq-out'); box.textContent = ''; if (!LQ.length) return;
+    const C = calib(); const sea = $('lq-mode').value === 'maritimo';
+    let buy = 0, lb = 0, worst = 2, ft = 0, dimsAll = true;
+    const rows = LQ.map((it, i) => {
+      const W = it.lbManual != null ? { lb: it.lbManual, src: 'Escrito por ti', ok: 2 } : itemWeight(it, C);
+      const v = n(it.p) != null ? Math.round(n(it.p) * (1 + TAX()) * 100) / 100 : null;
+      buy += v || 0; lb += W.lb; worst = Math.min(worst, W.ok);
+      if (Array.isArray(it.dims)) ft += it.dims.reduce((a, b) => a * b, 1) / 1728 * 1.3; else dimsAll = false;
+      const inp = h('input', { type: 'number', min: '0', step: '0.1', inputmode: 'decimal', value: W.lb.toFixed(2), 'aria-label': 'Peso en libras' });
+      inp.addEventListener('change', () => { LQ[i].lbManual = n(inp.value); renderLQ(); });
+      return h('div', { class: 'lqrow' }, thumbEl(it.img), h('div', { class: 'lqn' }, h('a', { href: it.url, target: '_blank', rel: 'noopener' }, it.n || 'Producto'), h('span', null, (v != null ? usd(v) + ' con impuesto' : 'Sin precio: escríbelo al convertir en pedido') + ' · ' + W.src)), h('label', { class: 'lqw' }, inp, h('span', null, 'lb')), h('button', { class: 'x', type: 'button', 'aria-label': 'Quitar', onclick: () => { LQ.splice(i, 1); renderLQ(); } }, '×'));
+    });
+    lb = Math.round(lb * 100) / 100;
+    let gc, range, basis;
+    if (sea) {
+      const rate = n(S.cfg.sea_rate) || 35, min = n(S.cfg.sea_min) || 0, vmin = n(S.cfg.vol_min) || 1;
+      const f = Math.max(vmin, Math.round(ft * 100) / 100);
+      gc = Math.round(Math.max(min, f * rate) * 100) / 100; range = dimsAll ? 0.15 : 0.35;
+      basis = (dimsAll ? f + ' ft³ según las medidas de Amazon' : 'Sin medidas de todos los productos: ' + f + ' ft³ (mínimo)') + ' × $' + rate + '/ft³';
+    } else {
+      const rate = n(S.cfg.air_rate) || 4.85, min = n(S.cfg.air_min) || 0;
+      gc = Math.round(Math.max(min, lb * rate) * 100) / 100; range = worst === 2 ? 0.1 : worst === 1 ? 0.2 : 0.3;
+      basis = lb.toFixed(2) + ' lb × $' + rate + '/lb' + (lb * rate < min ? ' (aplica el mínimo de ' + usd(min) + ')' : '');
+    }
+    const lo = Math.round(gc * (1 - range) * 100) / 100, hi = Math.round(gc * (1 + range) * 100) / 100;
+    const minFloor = sea ? n(S.cfg.sea_min) || 0 : n(S.cfg.air_min) || 0;
+    buy = Math.round(buy * 100) / 100;
+    box.append(h('div', { class: 'lqlist' }, ...rows),
+      h('div', { class: 'lqsum' },
+        h('div', null, h('span', null, 'Compra (con 7%)'), h('b', null, usd(buy))),
+        h('div', null, h('span', null, 'Gold Coast aprox. · ' + (sea ? 'marítimo' : 'aéreo')), h('b', null, '≈ ' + usd(gc)), h('small', null, 'entre ' + usd(Math.max(minFloor, lo)) + ' y ' + usd(hi) + ' · ' + basis)),
+        h('div', { class: 'tot' }, h('span', null, 'Total'), h('b', null, '≈ ' + usd(Math.round((buy + gc) * 100) / 100)))),
+      h('p', { class: 'hint' }, C.nBook || C.nRatio ? 'Calibrado con ' + (C.nBook + C.nRatio) + ' de tus facturas de Gold Coast. Se afina solo con cada factura nueva.' : 'Todavía sin facturas para calibrar: usa pesos de Amazon y promedios típicos.'),
+      h('div', { class: 'row' }, h('button', { class: 'btn primary', type: 'button', disabled: S.ro || !S.db, onclick: async () => {
+        const items = LQ.map((it) => { const o = { n: it.n, img: it.img || null, url: it.url || null }; if (n(it.p) != null) o.p = n(it.p); if (n(it.w) != null) o.w = n(it.w); if (it.b) o.b = true; return o; });
+        await S.db.collection('envios').add({ estado: 'Por cobrar', tienda: 'Amazon', f_compra: todayISO(), metodo: sea ? 'maritimo' : 'aereo', items, articulos: items.map((x) => x.n).filter(Boolean).join('\n'), total_compra: buy || null, creado: new Date().toISOString(), actualizado: new Date().toISOString() });
+        LQ = []; $('lq-urls').value = ''; renderLQ(); toast('Pedido creado en "Por cobrar"');
+      } }, 'Convertir en pedido'), h('button', { class: 'btn ghost', type: 'button', onclick: () => { LQ = []; renderLQ(); } }, 'Limpiar')));
+  }
+  $('lq-mode').addEventListener('change', renderLQ);
+  $('lq-go').addEventListener('click', async () => {
+    const urls = $('lq-urls').value.split(/\s+/).filter((u) => /^https?:\/\//i.test(u));
+    if (!urls.length) { toast('Pega al menos un enlace'); return; }
+    const btn = $('lq-go'); btn.disabled = true; btn.textContent = 'Buscando…';
+    for (const u of urls) {
+      try { const r = await linkPreview(u); LQ.push({ n: r.title || 'Producto de Amazon', img: r.img, url: r.url || u, p: r.price, w: r.w, b: !!r.book, dims: r.dims }); }
+      catch (e) { LQ.push({ n: 'No se pudo leer este enlace', url: u }); }
+      renderLQ();
+    }
+    $('lq-urls').value = ''; btn.disabled = false; btn.textContent = 'Cotizar';
+  });
 
   /* ---------- Gold Coast estimate (before the invoice arrives) ---------- */
   // Uses the weight on the Gold Coast receipt when there is one; otherwise the Amazon weight of each item
@@ -1811,7 +2003,7 @@ details.auto > .fields { padding: 0 14px 14px; }
   const APP_V = 'importaciones-v20';
   let swReg = null;
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {}));
-  const busyNow = () => !$('scrim').hidden || !$('pscrim').hidden || !$('dscrim').hidden || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+  const busyNow = () => !$('scrim').hidden || !$('pscrim').hidden || !$('dscrim').hidden || !$('kscrim').hidden || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
   let pendingUpdate = false;
   async function checkUpdate() {
     if (!navigator.onLine) return;

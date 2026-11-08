@@ -57,6 +57,16 @@ export function weightLb(html) {
   return null;
 }
 
+// Package (or product) size in inches, for sea freight, or null.
+export function dimsIn(html) {
+  const text = String(html).replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&(?:rlm|lrm|nbsp|#8206|#8207|#160);/gi, ' ').replace(/[‎‏ ]/g, ' ').replace(/\s+/g, ' ');
+  const m = text.match(/(?:Package|Product|Item) Dimensions\s*(?:L x W x H)?\s*:?\s*([\d.]+)\s*x\s*([\d.]+)\s*x\s*([\d.]+)\s*(inches|in|centimeters|cm)/i) || text.match(/Dimensiones del (?:paquete|producto)\s*:?\s*([\d.,]+)\s*x\s*([\d.,]+)\s*x\s*([\d.,]+)\s*(pulgadas|cm|cent[ií]metros)/i);
+  if (!m) return null;
+  const k = /^c/i.test(m[4]) ? 1 / 2.54 : 1;
+  const d = [m[1], m[2], m[3]].map((v) => Math.round(parseFloat(String(v).replace(',', '.')) * k * 100) / 100);
+  return d.every((v) => v > 0 && v < 200) ? d : null;
+}
+
 // Current price in USD (the one in the buy box), or null when unsure.
 export function priceUsd(html) {
   const num = (s) => { const v = parseFloat(String(s).replace(/[^\d.]/g, '')); return Number.isFinite(v) && v > 0 && v < 100000 ? Math.round(v * 100) / 100 : null; };
@@ -91,7 +101,7 @@ export function extractAmazon(html) {
     const t = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
     if (t) title = decode(t[1]).replace(/^Amazon\.[a-z.]+\s*:\s*/i, '').replace(/\s*:\s*Amazon\.[a-z.]+.*$/i, '');
   }
-  return { image: image ? decode(image) : null, title: title || null, weight_lb: weightLb(html), price: priceUsd(html), book: /ISBN-1[03]|>\s*(Hardcover|Paperback|Tapa dura|Tapa blanda|Pasta dura|Pasta blanda)\s*</i.test(html) };
+  return { image: image ? decode(image) : null, title: title || null, weight_lb: weightLb(html), price: priceUsd(html), dims: dimsIn(html), book: /ISBN-1[03]|>\s*(Hardcover|Paperback|Tapa dura|Tapa blanda|Pasta dura|Pasta blanda)\s*</i.test(html) };
 }
 
 export function extractGeneric(html, base) {
@@ -165,7 +175,7 @@ export default async (req) => {
       if (asin || /(^|\.)amazon\./i.test(new URL(r.finalUrl).hostname)) {
         if (looksBlocked(r.html)) continue;
         const a = extractAmazon(r.html);
-        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image, weight_lb: a.weight_lb, price: a.price, book: a.book });
+        if (a.image || a.title) return json({ url: r.finalUrl, asin, title: a.title, image: a.image, weight_lb: a.weight_lb, price: a.price, dims: a.dims, book: a.book });
         continue;
       }
       const g = extractGeneric(r.html, r.finalUrl);
