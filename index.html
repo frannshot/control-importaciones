@@ -1000,6 +1000,8 @@ details.auto > .fields { padding: 0 14px 14px; }
     }
     if (e.f_aprox_miami && e.f_aprox_miami < t0) return { t: 'Retrasado', s: 'Debía llegar a Miami el ' + fmtL(e.f_aprox_miami) + '. Revisa el tracking.', c: 'warn' };
     if (e.estado === 'Por cobrar') return { t: 'Pendiente de cobro', s: (e.tienda || 'La tienda') + ' te cobra cuando envíe cada caja' + (e.f_aprox_miami ? ' · llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : ''), c: 'go' };
+    if (e.estado === 'En espera' && e.tracking) return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Rumbo al casillero', s: 'Con tracking · esperando el recibo de Gold Coast', c: 'go' };
+    if (e.estado === 'En espera' && !e.tracking && (e.cobro === 'cobrado' || n(e.cobro_binance) != null)) return { t: 'Cobrado · falta el tracking', s: 'Cuando Amazon muestre el tracking, agrégalo y elige los artículos de la caja', c: 'go' };
     if (e.cobro === 'pendiente') return { t: 'Pedido confirmado', s: 'Amazon te cobra cuando lo envíe' + (e.f_aprox_miami ? ' · llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : ''), c: 'go' };
     if (e.f_envio_tienda) return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Enviado por la tienda', s: 'Enviado por ' + (e.tienda || 'la tienda') + ' el ' + fmtL(e.f_envio_tienda), c: 'go' };
     return { t: e.f_aprox_miami ? 'Llega a Miami aprox. el ' + fmtL(e.f_aprox_miami) : 'Esperando envío de la tienda', s: e.f_compra ? 'Comprado el ' + fmtL(e.f_compra) : '', c: 'go' };
@@ -1600,8 +1602,9 @@ details.auto > .fields { padding: 0 14px 14px; }
   function contentLabel(e) {
     const L = itemsOf(e).map((x) => x.n).filter(Boolean);
     if (!L.length) { const k = n(e.n_articulos); return k ? k + (/libro/i.test(e.articulos || '') ? (k === 1 ? ' libro' : ' libros') : (k === 1 ? ' artículo' : ' artículos')) : (e.articulos || ''); }
-    const its = itemsOf(e).filter((x) => x.n); const b = its.filter((x) => x.b || IS_BOOK.test(x.n)).length, o = L.length - b;
-    return [b ? b + (b === 1 ? ' libro' : ' libros') : null, o ? o + (o === 1 ? ' artículo' : ' artículos') : null].filter(Boolean).join(' y ');
+    const its = itemsOf(e).filter((x) => x.n); const SHOE = /zapat|tenis|sneaker|shoe|zapatilla|bota\b|boot/i;
+    const b = its.filter((x) => x.b || IS_BOOK.test(x.n)).length, s = its.filter((x) => !(x.b || IS_BOOK.test(x.n)) && SHOE.test(x.n)).length, o = L.length - b - s;
+    return [b ? b + (b === 1 ? ' libro' : ' libros') : null, s ? s + (s === 1 ? ' par de zapatos' : ' pares de zapatos') : null, o ? o + (o === 1 ? ' artículo' : ' artículos') : null].filter(Boolean).join(' y ').replace(/ y (?=[^y]* y )/, ', ');
   }
 
 
