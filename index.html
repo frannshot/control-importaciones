@@ -555,6 +555,12 @@ details.auto > .fields { padding: 0 14px 14px; }
 .lqsum .tot { border-top: 1px solid var(--line); padding-top: 8px; }
 .lqsum .tot b { font-size: 18px; }
 @media (max-width: 520px) { .lqrow { grid-template-columns: 48px minmax(0, 1fr) auto; } .lqrow .lqw { grid-column: 2; } .lqrow .x { grid-row: 1; grid-column: 3; } }
+.lqn .src { font-size: 11.5px; color: #4b5563; }
+.lqn .src.warn { color: #9a5b00; }
+.lqedit { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.lqd { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); }
+.lqd input { width: 60px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 4px; font-size: 16px; text-align: center; }
+@media (max-width: 520px) { .lqrow .lqedit { grid-column: 2 / 4; align-items: flex-start; flex-direction: row; flex-wrap: wrap; } }
 </style>
 </head>
 <body>
@@ -1609,7 +1615,30 @@ details.auto > .fields { padding: 0 14px 14px; }
 
 
   /* ---------- Quote from Amazon links, calibrated with your own invoices ---------- */
-  const TYPICAL = [[/zapat|tenis|sneaker|shoe|bota|boot/i, 2.6, 'zapatos'], [/calcet|sock|cable|bater|battery|funda|case|cargador usb|adaptador|llavero/i, 0.6, 'accesorio pequeño'], [/monitor|c[aá]mara|camera|linterna|light|lente|lens|tr[ií]pode|tripod|micr[oó]fono|microphone|cargador|charger/i, 1.6, 'electrónica'], [/camis|shirt|pantal|pants|vestid|dress|ropa|hoodie|su[eé]ter/i, 1.0, 'ropa']];
+  // Similar products: shipping weight (lb, with box) and box size (inches). Most specific first.
+  const REFS = [
+    [/direct ?drive|wheel ?base|base (del )?volante|rs50|g pro racing|simagic|moza r\d|fanatec (csl|gt dd|clubsport dd)/i, 'Volante / base direct drive', 21, [21, 14, 9]],
+    [/pedal(es|s)?\b/i, 'Pedales de simracing', 12, [20, 14, 8]],
+    [/volante|racing wheel|steering wheel|g29|g920|g923|t300|t150|t248/i, 'Volante de simracing', 13, [17, 13, 12]],
+    [/cockpit|rig\b|playseat|asiento de simulador|sim racing seat/i, 'Cockpit / asiento de simracing', 45, [36, 24, 12]],
+    [/field monitor|monitor de c[aá]mara|on-camera monitor|camera monitor|portkeys|feelworld|atomos/i, 'Monitor de cámara (5–7")', 1.6, [9, 7, 4]],
+    [/monitor|pantalla gamer|gaming monitor/i, 'Monitor de PC (24–27")', 14, [27, 17, 6]],
+    [/tr[ií]pode|tripod|monopod/i, 'Trípode', 5, [27, 6, 6]],
+    [/lente|lens\b|objetivo \d/i, 'Lente de cámara', 2, [7, 5, 5]],
+    [/c[aá]mara|camera|mirrorless|dslr|gopro|osmo/i, 'Cámara', 2.5, [8, 7, 6]],
+    [/micr[oó]fono|microphone|\bmic\b/i, 'Micrófono', 1.5, [8, 6, 4]],
+    [/aud[ií]fonos|auriculares|headphones?|headset|airpods|earbuds/i, 'Audífonos', 1.8, [9, 8, 4]],
+    [/playstation|ps5|xbox|nintendo switch|consola|console/i, 'Consola de videojuegos', 10, [18, 12, 6]],
+    [/laptop|notebook|macbook|port[aá]til/i, 'Laptop', 6, [17, 12, 3]],
+    [/tablet|ipad|kindle/i, 'Tablet / lector', 2, [11, 9, 2]],
+    [/teclado|keyboard/i, 'Teclado', 3, [19, 7, 3]],
+    [/\bmouse\b|rat[oó]n/i, 'Mouse', 0.6, [6, 4, 3]],
+    [/linterna|luz led|led light|video light|softbox|panel led/i, 'Luz / linterna', 1.8, [8, 5, 4]],
+    [/zapat|tenis|sneaker|shoe|zapatilla|\bbotas?\b|boots?\b/i, 'Par de zapatos', 2.6, [13, 9, 5]],
+    [/camis|shirt|pantal[oó]n|pants|vestido|dress|hoodie|su[eé]ter|chaqueta|jacket|calcet|socks?/i, 'Ropa', 1, [12, 10, 2]],
+    [/iphone|celular|smartphone|tel[eé]fono m[oó]vil/i, 'Teléfono', 1, [7, 4, 2]],
+    [/cable|bater[ií]a|battery|funda|case\b|cargador|charger|adaptador|adapter|memoria|sd card|llavero/i, 'Accesorio pequeño', 0.7, [7, 5, 2]],
+  ];
   const median = (L) => { const s = L.slice().sort((a, b) => a - b); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
   function calib() {
     const done = (S.env || []).filter((e) => n(e.factura_gc) != null && n(e.peso_lb) != null && e.metodo !== 'maritimo' && itemsOf(e).length);
@@ -1621,54 +1650,75 @@ details.auto > .fields { padding: 0 14px 14px; }
     }
     return { book: median(perBook), nBook: perBook.length, ratio: median(ratio), nRatio: ratio.length };
   }
-  function itemWeight(it, C) {
+  // Weight and box of one product, with where each number came from.
+  function itemSpec(it, C) {
     const isBook = it.b || IS_BOOK.test(it.n || '');
-    if (isBook) {
-      if (C.book != null) return { lb: C.book, src: 'Promedio de tus libros (' + C.nBook + (C.nBook === 1 ? ' factura' : ' facturas') + ')', ok: 2 };
-      if (n(it.w) != null) return { lb: n(it.w) + 0.35, src: 'Peso de Amazon + caja', ok: 1 };
-      return { lb: 1.5, src: 'Promedio típico de un libro', ok: 0 };
-    }
-    if (n(it.w) != null) return C.ratio != null ? { lb: n(it.w) * C.ratio, src: 'Peso de Amazon ajustado con tus facturas', ok: 2 } : { lb: n(it.w) * 1.15 + 0.3, src: 'Peso de Amazon + caja', ok: 1 };
-    const t = TYPICAL.find(([re]) => re.test(it.n || ''));
-    return t ? { lb: t[1], src: 'Promedio típico: ' + t[2], ok: 0 } : { lb: 1.5, src: 'Promedio típico (sin categoría)', ok: 0 };
+    const ref = isBook ? null : REFS.find(([re]) => re.test(it.n || ''));
+    let lb, src, ok, dims = null, dsrc = null;
+    if (it.lbManual != null) { lb = it.lbManual; src = '✅ Dato tuyo'; ok = 2; }
+    else if (isBook) {
+      if (C.book != null) { lb = C.book; src = '📊 Promedio de tus libros (' + C.nBook + (C.nBook === 1 ? ' factura' : ' facturas') + ')'; ok = 2; }
+      else if (n(it.w) != null) { lb = n(it.w) + 0.35; src = '🛒 Amazon + caja'; ok = 1; }
+      else { lb = 1.5; src = '⚠️ Referencia: libro'; ok = 0; }
+    } else if (n(it.w) != null) {
+      lb = C.ratio != null ? n(it.w) * C.ratio : n(it.w) * 1.1 + 0.3; src = C.ratio != null ? '🛒 Amazon, ajustado con tus facturas' : '🛒 Amazon + caja'; ok = C.ratio != null ? 2 : 1;
+      if (ref && lb < ref[2] * 0.35) { lb = ref[2]; src = '⚠️ Referencia similar: ' + ref[1] + ' (el peso de Amazon parecía incompleto)'; ok = 0; }
+    } else if (ref) { lb = ref[2]; src = '⚠️ Referencia similar: ' + ref[1]; ok = 0; }
+    else { lb = 2; src = '⚠️ Sin datos: escribe el peso y las medidas'; ok = -1; }
+    if (Array.isArray(it.dimsManual)) { dims = it.dimsManual; dsrc = '✅ Medidas tuyas'; }
+    else if (Array.isArray(it.dims)) { dims = it.dims.map((v) => v + 1); dsrc = '🛒 Medidas de Amazon (+1 in por empaque)'; }
+    else if (ref && it.lbManual == null) { dims = ref[3]; dsrc = '⚠️ Caja de referencia: ' + ref[1]; }
+    else if (isBook) { dims = [10, 7, 2]; dsrc = '⚠️ Caja de referencia: libro'; }
+    return { lb, src, ok, dims, dsrc };
   }
   let LQ = [];
   function renderLQ() {
     const box = $('lq-out'); box.textContent = ''; if (!LQ.length) return;
     const C = calib(); const sea = $('lq-mode').value === 'maritimo';
-    let buy = 0, lb = 0, worst = 2, ft = 0, dimsAll = true;
+    const div = n(S.cfg.divisor) || 166;
+    let buy = 0, real = 0, vin = 0, worst = 2, allDims = true;
     const rows = LQ.map((it, i) => {
-      const W = it.lbManual != null ? { lb: it.lbManual, src: 'Escrito por ti', ok: 2 } : itemWeight(it, C);
+      const sp = itemSpec(it, C);
       const v = n(it.p) != null ? Math.round(n(it.p) * (1 + TAX()) * 100) / 100 : null;
-      buy += v || 0; lb += W.lb; worst = Math.min(worst, W.ok);
-      if (Array.isArray(it.dims)) ft += it.dims.reduce((a, b) => a * b, 1) / 1728 * 1.3; else dimsAll = false;
-      const inp = h('input', { type: 'number', min: '0', step: '0.1', inputmode: 'decimal', value: W.lb.toFixed(2), 'aria-label': 'Peso en libras' });
-      inp.addEventListener('change', () => { LQ[i].lbManual = n(inp.value); renderLQ(); });
-      return h('div', { class: 'lqrow' }, thumbEl(it.img), h('div', { class: 'lqn' }, h('a', { href: it.url, target: '_blank', rel: 'noopener' }, it.n || 'Producto'), h('span', null, (v != null ? usd(v) + ' con impuesto' : 'Sin precio: escríbelo al convertir en pedido') + ' · ' + W.src)), h('label', { class: 'lqw' }, inp, h('span', null, 'lb')), h('button', { class: 'x', type: 'button', 'aria-label': 'Quitar', onclick: () => { LQ.splice(i, 1); renderLQ(); } }, '×'));
+      buy += v || 0; real += sp.lb; worst = Math.min(worst, sp.ok);
+      if (sp.dims) vin += sp.dims[0] * sp.dims[1] * sp.dims[2]; else allDims = false;
+      const w = h('input', { type: 'number', min: '0', step: '0.1', inputmode: 'decimal', value: sp.lb.toFixed(2), 'aria-label': 'Peso en libras' });
+      w.addEventListener('change', () => { LQ[i].lbManual = n(w.value); renderLQ(); });
+      const dimIn = (k) => { const x = h('input', { type: 'number', min: '0', step: '0.1', inputmode: 'decimal', value: sp.dims ? String(Math.round(sp.dims[k] * 10) / 10) : '', placeholder: ['L', 'A', 'H'][k], 'aria-label': ['Largo', 'Ancho', 'Alto'][k] + ' en pulgadas' }); x.addEventListener('change', () => { const d = [0, 1, 2].map((j) => n(row.querySelectorAll('.lqd input')[j].value)); if (!d.every((y) => y > 0)) return; LQ[i].dimsManual = d; renderLQ(); }); return x; };
+      const vol = sp.dims ? Math.round(sp.dims[0] * sp.dims[1] * sp.dims[2] / div * 100) / 100 : null;
+      const row = h('div', { class: 'lqrow' }, thumbEl(it.img),
+        h('div', { class: 'lqn' }, h('a', { href: it.url, target: '_blank', rel: 'noopener' }, it.n || 'Producto'),
+          h('span', null, (v != null ? usd(v) + ' con impuesto' : 'Sin precio')),
+          h('span', { class: 'src' + (sp.ok < 1 ? ' warn' : '') }, 'Peso: ' + sp.src),
+          h('span', { class: 'src' + (sp.dsrc && sp.dsrc.startsWith('⚠️') ? ' warn' : '') }, 'Caja: ' + (sp.dsrc || 'sin medidas') + (vol != null ? ' · volumétrico ' + vol.toFixed(1) + ' lb' : ''))),
+        h('div', { class: 'lqedit' }, h('label', { class: 'lqw' }, w, h('span', null, 'lb')), h('div', { class: 'lqd' }, dimIn(0), h('span', null, '×'), dimIn(1), h('span', null, '×'), dimIn(2), h('span', null, 'in'))),
+        h('button', { class: 'x', type: 'button', 'aria-label': 'Quitar', onclick: () => { LQ.splice(i, 1); renderLQ(); } }, '×'));
+      return row;
     });
-    lb = Math.round(lb * 100) / 100;
+    real = Math.round(real * 100) / 100; const volLb = Math.round(vin / div * 100) / 100; const ft = Math.round(vin / 1728 * 100) / 100;
     let gc, range, basis;
     if (sea) {
       const rate = n(S.cfg.sea_rate) || 35, min = n(S.cfg.sea_min) || 0, vmin = n(S.cfg.vol_min) || 1;
-      const f = Math.max(vmin, Math.round(ft * 100) / 100);
-      gc = Math.round(Math.max(min, f * rate) * 100) / 100; range = dimsAll ? 0.15 : 0.35;
-      basis = (dimsAll ? f + ' ft³ según las medidas de Amazon' : 'Sin medidas de todos los productos: ' + f + ' ft³ (mínimo)') + ' × $' + rate + '/ft³';
+      const f = Math.max(vmin, ft);
+      gc = Math.round(Math.max(min, f * rate) * 100) / 100; range = allDims && worst >= 1 ? 0.12 : 0.3;
+      basis = f.toFixed(2) + ' ft³ × $' + rate + '/ft³' + (f * rate < min ? ' (aplica el mínimo de ' + usd(min) + ')' : '') + (allDims ? '' : ' · faltan medidas de algún producto');
     } else {
       const rate = n(S.cfg.air_rate) || 4.85, min = n(S.cfg.air_min) || 0;
-      gc = Math.round(Math.max(min, lb * rate) * 100) / 100; range = worst === 2 ? 0.1 : worst === 1 ? 0.2 : 0.3;
-      basis = lb.toFixed(2) + ' lb × $' + rate + '/lb' + (lb * rate < min ? ' (aplica el mínimo de ' + usd(min) + ')' : '');
+      const bill = Math.max(real, allDims ? volLb : 0);
+      gc = Math.round(Math.max(min, bill * rate) * 100) / 100; range = worst === 2 ? 0.1 : worst === 1 ? 0.2 : 0.3;
+      basis = 'Peso real ' + real.toFixed(2) + ' lb' + (allDims ? ' · volumétrico ' + volLb.toFixed(2) + ' lb' : '') + ' → cobra ' + bill.toFixed(2) + ' lb × $' + rate + (bill * rate < min ? ' (mínimo ' + usd(min) + ')' : '');
     }
-    const lo = Math.round(gc * (1 - range) * 100) / 100, hi = Math.round(gc * (1 + range) * 100) / 100;
     const minFloor = sea ? n(S.cfg.sea_min) || 0 : n(S.cfg.air_min) || 0;
+    const lo = Math.max(minFloor, Math.round(gc * (1 - range) * 100) / 100), hi = Math.round(gc * (1 + range) * 100) / 100;
     buy = Math.round(buy * 100) / 100;
     box.append(h('div', { class: 'lqlist' }, ...rows),
       h('div', { class: 'lqsum' },
-        h('div', null, h('span', null, 'Compra (con 7%)'), h('b', null, usd(buy))),
-        h('div', null, h('span', null, 'Gold Coast aprox. · ' + (sea ? 'marítimo' : 'aéreo')), h('b', null, '≈ ' + usd(gc)), h('small', null, 'entre ' + usd(Math.max(minFloor, lo)) + ' y ' + usd(hi) + ' · ' + basis)),
+        h('div', null, h('span', null, 'Compra (con impuesto)'), h('b', null, usd(buy))),
+        h('div', null, h('span', null, 'Gold Coast aprox. · ' + (sea ? 'marítimo' : 'aéreo')), h('b', null, '≈ ' + usd(gc)), h('small', null, 'entre ' + usd(lo) + ' y ' + usd(hi) + ' · ' + basis)),
         h('div', { class: 'tot' }, h('span', null, 'Total'), h('b', null, '≈ ' + usd(Math.round((buy + gc) * 100) / 100)))),
-      h('p', { class: 'hint' }, C.nBook || C.nRatio ? 'Calibrado con ' + (C.nBook + C.nRatio) + ' de tus facturas de Gold Coast. Se afina solo con cada factura nueva.' : 'Todavía sin facturas para calibrar: usa pesos de Amazon y promedios típicos.'),
+      h('p', { class: 'hint' }, 'Si conoces el peso o las medidas reales (web oficial, otra tienda o la caja), escríbelos y se recalcula. ' + (C.nBook || C.nRatio ? 'Calibrado con ' + (C.nBook + C.nRatio) + ' de tus facturas de Gold Coast.' : '')),
       h('div', { class: 'row' }, h('button', { class: 'btn primary', type: 'button', disabled: S.ro || !S.db, onclick: async () => {
-        const items = LQ.map((it) => { const o = { n: it.n, img: it.img || null, url: it.url || null }; if (n(it.p) != null) o.p = n(it.p); if (n(it.w) != null) o.w = n(it.w); if (it.b) o.b = true; return o; });
+        const items = LQ.map((it) => { const sp = itemSpec(it, calib()); const o = { n: it.n, img: it.img || null, url: it.url || null }; if (n(it.p) != null) o.p = n(it.p); if (it.lbManual != null) o.w = it.lbManual; else if (n(it.w) != null) o.w = n(it.w); if (it.b) o.b = true; if (sp.dims) o.d = sp.dims; return o; });
         await S.db.collection('envios').add({ estado: 'Por cobrar', tienda: 'Amazon', f_compra: todayISO(), metodo: sea ? 'maritimo' : 'aereo', items, articulos: items.map((x) => x.n).filter(Boolean).join('\n'), total_compra: buy || null, creado: new Date().toISOString(), actualizado: new Date().toISOString() });
         LQ = []; $('lq-urls').value = ''; renderLQ(); toast('Pedido creado en "Por cobrar"');
       } }, 'Convertir en pedido'), h('button', { class: 'btn ghost', type: 'button', onclick: () => { LQ = []; renderLQ(); } }, 'Limpiar')));
@@ -1708,9 +1758,12 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (n(e.peso_lb) != null) { lb = n(e.peso_lb); why = 'Con el peso del recibo de Gold Coast: ' + lb.toFixed(2) + ' lb'; }
     else {
       const items = itemsOf(e); if (!items.length) return null;
-      let known = 0;
-      lb = items.reduce((s, it) => { const w = n(it.w); if (w != null) { known++; return s + w; } return s + (BOOK.test(it.n || '') ? 1.4 : 1.5); }, 0) + 0.4;
-      why = 'Estimado: ' + lb.toFixed(1) + ' lb (' + (known === items.length ? 'peso de Amazon' : known ? 'peso de Amazon y peso típico' : 'peso típico por artículo') + ' + caja)';
+      const C = calib(); const div = n(S.cfg.divisor) || 166;
+      const specs = items.map((it) => itemSpec({ ...it, dims: it.d }, C));
+      const real = specs.reduce((s, x) => s + x.lb, 0);
+      const vol = specs.every((x) => x.dims) ? specs.reduce((s, x) => s + x.dims[0] * x.dims[1] * x.dims[2], 0) / div : 0;
+      lb = Math.max(real, vol);
+      why = 'Estimado: ' + lb.toFixed(1) + ' lb' + (vol > real ? ' (por volumen)' : '') + ' · ' + [...new Set(specs.map((x) => x.src.replace(/^\S+ /, '')))].join(' · ');
     }
     return { usd: Math.round(Math.max(min, lb * rate) * 100) / 100, lb, why };
   }
