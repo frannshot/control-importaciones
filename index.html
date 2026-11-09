@@ -561,6 +561,7 @@ details.auto > .fields { padding: 0 14px 14px; }
 .lqd { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); }
 .lqd input { width: 60px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 4px; font-size: 16px; text-align: center; }
 @media (max-width: 520px) { .lqrow .lqedit { grid-column: 2 / 4; align-items: flex-start; flex-direction: row; flex-wrap: wrap; } }
+.tg-steps { margin: 0 0 12px; padding-left: 20px; line-height: 1.55; } .tg-steps li { margin: 4px 0; } .tg-steps a { color: var(--link); font-weight: 600; } a.btn { text-decoration: none; display: inline-flex; align-items: center; }
 </style>
 </head>
 <body>
@@ -734,6 +735,19 @@ details.auto > .fields { padding: 0 14px 14px; }
       <div class="sect"><h2>Notificaciones</h2><span class="meta">Avisos en este dispositivo cuando algo cambie solo</span></div>
       <div class="row"><button class="btn primary" id="push-on" type="button">Activar notificaciones</button><button class="btn" id="push-test" type="button" hidden>Enviar una prueba</button><span class="hint" id="push-status"></span></div>
       <p class="hint" style="margin-top:10px">Recibos y facturas de Gold Coast, salida hacia Caracas y paquete listo para retirar. En el iPhone, abre la app desde su ícono en la pantalla de inicio para activarlas.</p>
+    </section>
+    <section id="tgsec">
+      <div class="sect"><h2>Telegram</h2><span class="meta">Avisos en un chat y preguntas como «¿qué tengo por retirar?»</span></div>
+      <div id="tg-setup">
+        <ol class="hint tg-steps">
+          <li>En Telegram abre <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>, escribe <b>/newbot</b> y ponle un nombre (ej. <i>Importaciones Fran</i>) y un usuario que termine en <i>bot</i>.</li>
+          <li>BotFather te da un <b>token</b> (números, dos puntos y letras). Cópialo y pégalo aquí.</li>
+          <li>Toca <b>Abrir en Telegram</b> y luego <b>Iniciar</b>.</li>
+        </ol>
+        <div class="fields"><label class="f wide"><span>Token del bot</span><input id="tg-token" type="password" autocomplete="off" placeholder="123456789:AA…"></label></div>
+        <div class="row" style="margin-top:12px"><button class="btn primary" id="tg-save" type="button">Conectar bot</button></div>
+      </div>
+      <div class="row" style="margin-top:12px"><a class="btn primary" id="tg-open" href="#" target="_blank" rel="noopener" hidden>Abrir en Telegram</a><button class="btn" id="tg-test" type="button" hidden>Enviar una prueba</button><button class="btn" id="tg-off" type="button" hidden>Desconectar</button><span class="hint" id="tg-status"></span></div>
     </section>
   </main>
 </div>
@@ -2054,6 +2068,31 @@ details.auto > .fields { padding: 0 14px 14px; }
     return { refresh };
   })();
   setTimeout(() => PUSH.refresh().catch(() => {}), 1500);
+
+  /* ---------- Telegram bot ---------- */
+  const TG = (() => {
+    const key = () => ((STORE.get('config', 'sync') || {}).key) || '';
+    const st = (t) => { $('tg-status').textContent = t; };
+    const call = async (method, body) => { const r = await fetch('/.netlify/functions/telegram', { method, cache: 'no-store', headers: { 'x-key': key(), 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } if (!r.ok) throw new Error(j.error || 'HTTP ' + r.status); return j; };
+    function show(x) {
+      const on = !!(x && x.linked), wait = !!(x && x.link);
+      $('tg-setup').hidden = on || wait; $('tg-open').hidden = !wait; if (wait) $('tg-open').href = x.link;
+      $('tg-test').hidden = !on; $('tg-off').hidden = !(on || wait);
+      st(on ? 'Conectado con @' + x.bot + ' ✓' : wait ? 'Falta un paso: toca «Abrir en Telegram» y luego Iniciar.' : '');
+    }
+    async function refresh() { if (!key()) return; try { show(await call('GET')); } catch (e) { /* offline */ } }
+    $('tg-save').addEventListener('click', async () => {
+      if (!key()) { toast('Primero guarda la clave de sincronización'); return; }
+      const t = $('tg-token').value.trim(); if (!t) { $('tg-token').focus(); return; }
+      st('Conectando…'); try { const x = await call('POST', { token: t }); $('tg-token').value = ''; show(x); } catch (e) { st(e.message); }
+    });
+    $('tg-open').addEventListener('click', () => { let k = 0; const iv = setInterval(async () => { k++; await refresh(); if (!$('tg-test').hidden || k > 40) clearInterval(iv); }, 3000); });
+    $('tg-test').addEventListener('click', async () => { try { const r = await call('POST', { test: true }); toast(r.sent ? 'Prueba enviada a Telegram' : 'No se pudo enviar'); } catch (e) { toast('No se pudo enviar'); } });
+    $('tg-off').addEventListener('click', async () => { try { show(await call('POST', { off: true })); toast('Bot desconectado'); } catch (e) { toast('No se pudo desconectar'); } });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    return { refresh };
+  })();
+  setTimeout(() => TG.refresh(), 1800);
 
   /* ---------- Self-update: when a new version is published, reload on its own ---------- */
   const APP_V = 'importaciones-v21';
