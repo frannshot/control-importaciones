@@ -1,7 +1,6 @@
 // Shared helpers: auth, central data store and applying Gold Coast documents.
 import { getStore } from '@netlify/blobs';
 import webpush from 'web-push';
-import { tgNotify } from './tg.mjs';
 
 const KEY_HASH = '48e899b704fe73ef1962ca6a9e9e12b5e69fd774fe7ca0d831ebe9b4068276f5';
 export const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'x-key, content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
@@ -86,9 +85,8 @@ async function vapid(s) {
 export async function publicKey(s) { return (await vapid(s)).publicKey; }
 export async function notify(s, msgs) {
   msgs = (msgs || []).filter(Boolean); if (!msgs.length) return 0;
-  const tgSent = await tgNotify(s, msgs).catch(() => 0);
   const subs = (await s.get('subs', { type: 'json' })) || {};
-  const list = Object.entries(subs); if (!list.length) return tgSent;
+  const list = Object.entries(subs); if (!list.length) return 0;
   const v = await vapid(s);
   webpush.setVapidDetails('https://importaciones-fran.netlify.app', v.publicKey, v.privateKey);
   let sent = 0, dirty = false;
@@ -100,7 +98,7 @@ export async function notify(s, msgs) {
     }
   }
   if (dirty) await s.setJSON('subs', subs);
-  return sent + tgSent;
+  return sent;
 }
 
 /* ---- Messages ---- */
