@@ -561,6 +561,36 @@ details.auto > .fields { padding: 0 14px 14px; }
 .lqd { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); }
 .lqd input { width: 60px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 4px; font-size: 16px; text-align: center; }
 @media (max-width: 520px) { .lqrow .lqedit { grid-column: 2 / 4; align-items: flex-start; flex-direction: row; flex-wrap: wrap; } }
+
+/* Inbox */
+.tab { position: relative; white-space: nowrap; }
+a.btn { text-decoration: none; color: var(--ink); display: inline-flex; align-items: center; }
+.tab .tbadge { display: inline-block; min-width: 18px; margin-left: 5px; padding: 0 5px; border-radius: 99px; background: #e8a0a0; color: #3a1f1f; font-size: 11px; line-height: 18px; font-weight: 700; text-align: center; vertical-align: 1px; }
+@media (max-width: 680px) { .tabs .tab { font-size: 11.5px !important; letter-spacing: .01em !important; padding: 7px 2px !important; } .tab .tbadge { position: absolute; top: -5px; right: -2px; margin: 0; min-width: 16px; line-height: 16px; font-size: 10px; padding: 0 4px; } }
+#mchips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; padding: 2px 0 4px; }
+#mchips::-webkit-scrollbar { display: none; }
+#mchips .chip { border: 1px solid var(--line); border-radius: 99px; background: var(--panel); color: var(--ink); white-space: nowrap; }
+#mchips .chip[aria-pressed="true"] { background: color-mix(in srgb, var(--c, #6b7380) 14%, var(--panel)); border-color: color-mix(in srgb, var(--c, #6b7380) 45%, var(--panel)); color: var(--ink); }
+#mchips .chip[aria-pressed="true"] b { color: var(--ink); }
+.mfor { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: color-mix(in srgb, var(--st-mia) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--st-mia) 25%, var(--line)); border-radius: 12px; padding: 8px 12px; font-size: 13.5px; margin: 8px 0 0; }
+.mlist { display: flex; flex-direction: column; background: var(--panel); border-radius: 16px; box-shadow: var(--sh-1, 0 1px 3px rgb(0 0 0 / .08)); overflow: hidden; margin-top: 8px; }
+.mrow { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 2px 12px; align-items: start; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer; font: inherit; color: var(--ink); width: 100%; }
+.mrow:last-child { border-bottom: 0; }
+.mrow:hover { background: var(--panel-2); }
+.mrow .src { grid-row: span 3; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: color-mix(in srgb, var(--c) 70%, #1f2933); background: color-mix(in srgb, var(--c) 16%, var(--panel)); }
+.mrow .tt { font-size: 14.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow.unread .tt { font-weight: 700; }
+.mrow .tm { font-size: 12px; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.mrow.unread .tm::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #d98a8a; }
+.mrow .ln { grid-column: 2 / 4; font-size: 13.5px; color: var(--ink); opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .sn { grid-column: 2 / 4; font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .env { grid-column: 2 / 4; justify-self: start; margin-top: 4px; font-size: 12px; color: var(--link); background: color-mix(in srgb, var(--link) 8%, var(--panel)); border-radius: 99px; padding: 2px 9px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mempty { padding: 22px 16px; color: var(--muted); font-size: 14px; text-align: center; }
+.msheet { width: min(760px, 100%); }
+.msheet .body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.mmeta { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.mmeta b { color: var(--ink); font-weight: 600; }
+.mframe { flex: 1; width: 100%; min-height: 70vh; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 </style>
 </head>
 <body>
@@ -576,6 +606,7 @@ details.auto > .fields { padding: 0 14px 14px; }
       <button class="tab" role="tab" id="resumen" data-view="v-resumen" aria-selected="false">Resumen</button>
       <button class="tab" role="tab" id="cotizador" data-view="v-cotizar" aria-selected="false">Cotizador</button>
       <button class="tab" role="tab" id="tarifas" data-view="v-ajustes" aria-selected="false">Tarifas</button>
+      <button class="tab" role="tab" id="correos" data-view="v-correos" aria-selected="false">Correos<b class="tbadge" id="mbadge" hidden></b></button>
     </nav>
   </div>
 
@@ -736,6 +767,16 @@ details.auto > .fields { padding: 0 14px 14px; }
       <p class="hint" style="margin-top:10px">Recibos y facturas de Gold Coast, salida hacia Caracas y paquete listo para retirar. En el iPhone, abre la app desde su ícono en la pantalla de inicio para activarlas.</p>
     </section>
   </main>
+
+  <!-- CORREOS -->
+  <main id="v-correos" class="view" hidden>
+    <div class="ohdr"><h2>Correos</h2><div class="osearch"><input class="search" id="mq" type="search" placeholder="Buscar en tus correos" aria-label="Buscar en tus correos"></div></div>
+    <div class="chips" id="mchips" role="group" aria-label="Filtrar correos"></div>
+    <div class="mfor" id="mfor" hidden></div>
+    <div class="obar"><span><b id="mcount">0 correos</b> <span class="hint" id="msync"></span></span><button class="btn ghost" id="mreadall" type="button">Marcar todo como leído</button></div>
+    <div class="mlist" id="mlist"><p class="loading">Cargando tus correos…</p></div>
+    <p class="hint" style="margin-top:14px">Llegan solos desde Gmail cada 5 minutos: Gold Coast (frannshot) y Amazon y Binance Card (afranver).</p>
+  </main>
 </div>
 
 <datalist id="stores"></datalist>
@@ -816,6 +857,17 @@ details.auto > .fields { padding: 0 14px 14px; }
   </div>
 </div>
 
+<div class="scrim" id="mscrim" hidden>
+  <div class="sheet msheet" role="dialog" aria-modal="true" aria-labelledby="m-title">
+    <header><h2 id="m-title">Correo</h2><button class="x" id="m-x" type="button" aria-label="Cerrar">×</button></header>
+    <div class="body">
+      <div class="mmeta" id="m-meta"></div>
+      <div class="row" id="m-acts" style="margin:10px 0 12px"></div>
+      <iframe id="m-frame" class="mframe" title="Contenido del correo" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -830,7 +882,7 @@ details.auto > .fields { padding: 0 14px 14px; }
   const stLabel = (k) => (ESTADOS.find((e) => e.k === k) || { l: k }).l;
   const stColor = (k) => (ESTADOS.find((e) => e.k === k) || ESTADOS[0]).c;
   const DEF_CFG = { tax: 7, air_rate: 4.85, air_min: 10, divisor: 166, vol_min: 1, sea_rate: null, sea_min: null, cap: 100, cash: 0, dias_retiro: 5 };
-  const S = { env: null, tasks: null, quotes: null, cfg: { ...DEF_CFG }, filter: 'activos', q: '', sort: { k: 'f_compra', dir: 'desc' }, db: null, ro: false, editing: null };
+  const S = { mail: [], mfilter: 'todos', mfor: null, mq: '', env: null, tasks: null, quotes: null, cfg: { ...DEF_CFG }, filter: 'activos', q: '', sort: { k: 'f_compra', dir: 'desc' }, db: null, ro: false, editing: null };
   const $ = (id) => document.getElementById(id);
   const h = (tag, attrs, ...kids) => {
     const e = document.createElement(tag);
@@ -1051,6 +1103,8 @@ details.auto > .fields { padding: 0 14px 14px; }
     if (tu) acts.append(h('a', { class: 'pill', href: tu, target: '_blank', rel: 'noopener' }, 'Rastrear paquete'));
     if (nx) acts.append(h('button', { class: 'pill' + (nx === 'Terminado' ? ' g' : ''), type: 'button', disabled: S.ro || !S.db, onclick: () => advance(e) }, nx === 'Terminado' ? '✓ Marcar como retirado' : 'Pasar a ' + stLabel(nx)));
     acts.append(h('button', { class: 'pill', type: 'button', onclick: () => openEditor(e) }, 'Ver o editar pedido'));
+    const mails = mailsForEnv(e), unread = mails.filter((m) => !m.r).length;
+    if (mails.length) acts.append(h('button', { class: 'pill', type: 'button', onclick: () => showMailsFor(e) }, '✉️ Correos (' + mails.length + ')' + (unread ? ' · ' + unread + ' nuevo' + (unread > 1 ? 's' : '') : '')));
     if (acts.firstChild && !acts.firstChild.classList.contains('g')) acts.firstChild.classList.add('y');
     const parent = e.parte_de ? (S.env || []).find((x) => x.id === e.parte_de) : null;
     const want = n(e.n_articulos) || 1, have = itemsOf(e).filter((x) => x.url || x.img).length;
@@ -2054,6 +2108,118 @@ details.auto > .fields { padding: 0 14px 14px; }
     return { refresh };
   })();
   setTimeout(() => PUSH.refresh().catch(() => {}), 1500);
+
+  /* ---------- Inbox: Gold Coast, Amazon and Binance e-mails ---------- */
+  const MSRC = { goldcoast: { l: 'Gold Coast', ab: 'GC', c: '#3f8f88' }, amazon: { l: 'Amazon', ab: 'AZ', c: '#d9822b' }, binance: { l: 'Binance', ab: 'BN', c: '#c9a227' } };
+  const normT = (x) => String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const trackHit = (a, b) => { a = normT(a); b = normT(b); return a.length >= 10 && b.length >= 10 && (a === b || a.endsWith(b) || b.endsWith(a)); };
+  function mailHitsEnv(m, e) {
+    const r = m.refs || {};
+    if (e.pedido && (r.pedidos || []).some((p) => String(e.pedido).includes(p))) return true;
+    if (e.tracking && (r.trackings || []).some((t) => trackHit(t, e.tracking))) return true;
+    if (e.recibo && (r.recibos || []).includes(String(e.recibo))) return true;
+    if (m.kind === 'binance' && m.monto != null) {
+      const near = (v) => v != null && Math.abs(Number(v) - Number(m.monto)) < 0.015;
+      const ref = e.cobro_fecha || e.f_compra; const close = !ref || Math.abs(new Date(m.date) - new Date(ref + 'T12:00:00Z')) < 15 * 864e5;
+      if (close && (near(n(e.cobro_binance)) || near(n(e.total_compra)))) return true;
+    }
+    return false;
+  }
+  function mailsForEnv(e) { return (S.mail || []).filter((m) => mailHitsEnv(m, e)); }
+  const envsForMail = (m) => (S.env || []).filter((e) => mailHitsEnv(m, e));
+  const envName = (e) => { const it = itemsOf(e).map((x) => x.n).filter(Boolean); if (!it.length) return e.pedido ? 'Pedido …' + e.pedido.slice(-7) : 'Pedido'; const f = it[0].length > 40 ? it[0].slice(0, 38) + '…' : it[0]; return it.length > 1 ? f + ' y ' + (it.length - 1) + ' más' : f; };
+  const mTime = (iso) => { const d = new Date(iso); if (isNaN(d)) return ''; const now = new Date(); if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString('es-VE', { hour: 'numeric', minute: '2-digit' }); const y = new Date(now); y.setDate(now.getDate() - 1); if (d.toDateString() === y.toDateString()) return 'Ayer'; return d.toLocaleDateString('es-VE', { day: 'numeric', month: 'short' }); };
+  const MAIL = (() => {
+    const key = () => ((STORE.get('config', 'sync') || {}).key) || '';
+    const call = async (method, q, body) => { const r = await fetch('/.netlify/functions/mail' + (q || ''), { method, cache: 'no-store', headers: { 'x-key': key(), 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); };
+    let loaded = false, pendingOpen = null;
+    function badge() {
+      const u = S.mail.filter((m) => !m.r).length; const b = $('mbadge'); b.hidden = !u; b.textContent = u > 99 ? '99+' : String(u);
+      try { if (navigator.setAppBadge) (u ? navigator.setAppBadge(u) : navigator.clearAppBadge()).catch(() => {}); } catch (e) { /* not supported */ }
+    }
+    function chips() {
+      const box = $('mchips'); box.textContent = '';
+      const opts = [['todos', 'Todos', S.mail.length, '#6b7380'], ['nuevos', 'No leídos', S.mail.filter((m) => !m.r).length, '#d98a8a'], ...Object.entries(MSRC).map(([k, v]) => [k, v.l, S.mail.filter((m) => m.kind === k).length, v.c])];
+      opts.forEach(([k, l, c, col]) => box.append(h('button', { class: 'chip', type: 'button', style: '--c:' + col, 'aria-pressed': String(S.mfilter === k), onclick: () => { S.mfilter = k; render(); } }, h('i'), l, h('b', null, String(c)))));
+    }
+    function visibleMails() {
+      let L = S.mail.slice();
+      if (S.mfor) L = L.filter((m) => mailHitsEnv(m, S.mfor));
+      if (S.mfilter === 'nuevos') L = L.filter((m) => !m.r); else if (MSRC[S.mfilter]) L = L.filter((m) => m.kind === S.mfilter);
+      const q = S.mq.trim().toLowerCase(); if (q) L = L.filter((m) => [m.title, m.line, m.subject, m.snippet, m.from].join(' ').toLowerCase().includes(q));
+      return L;
+    }
+    function render() {
+      badge(); chips();
+      const f = $('mfor'); f.textContent = ''; f.hidden = !S.mfor;
+      if (S.mfor) f.append(h('span', null, 'Correos de ', h('b', null, envName(S.mfor))), h('button', { class: 'btn ghost', type: 'button', onclick: () => { S.mfor = null; render(); } }, 'Ver todos'));
+      const L = visibleMails(), box = $('mlist'); box.textContent = '';
+      $('mcount').textContent = L.length + (L.length === 1 ? ' correo' : ' correos');
+      $('mreadall').disabled = !S.mail.some((m) => !m.r);
+      if (!loaded) { box.append(h('p', { class: 'loading' }, key() ? 'Cargando tus correos…' : 'Guarda la clave de sincronización en Tarifas para ver tus correos.')); return; }
+      if (!L.length) { box.append(h('div', { class: 'mempty' }, S.mail.length ? 'No hay correos en esta vista.' : 'Aún no han llegado correos. Aparecerán aquí apenas el script de Gmail los envíe.')); return; }
+      L.forEach((m) => {
+        const src = MSRC[m.kind] || MSRC.amazon; const envs = envsForMail(m);
+        box.append(h('button', { class: 'mrow' + (m.r ? '' : ' unread'), type: 'button', onclick: () => open(m.id) },
+          h('span', { class: 'src', style: '--c:' + src.c, title: src.l }, src.ab),
+          h('span', { class: 'tt' }, m.title || m.subject),
+          h('span', { class: 'tm' }, mTime(m.date)),
+          h('span', { class: 'ln' }, m.line || m.subject),
+          m.snippet && m.snippet !== m.line ? h('span', { class: 'sn' }, m.snippet) : null,
+          envs.length && !S.mfor ? h('span', { class: 'env' }, '📦 ' + envName(envs[0]) + (envs.length > 1 ? ' +' + (envs.length - 1) : '')) : null));
+      });
+    }
+    async function load() {
+      if (!key()) { render(); return; }
+      try {
+        const before = S.mail.map((m) => m.id + m.r).join();
+        const r = await call('GET'); S.mail = r.items || []; loaded = true; $('msync').textContent = '';
+        if (S.mail.map((m) => m.id + m.r).join() !== before) { render(); if (S.env) renderLedger(); }
+        if (pendingOpen) { const id = pendingOpen; pendingOpen = null; open(id); }
+      } catch (e) { loaded = true; $('msync').textContent = navigator.onLine ? 'No se pudieron cargar' : 'Sin conexión'; render(); }
+    }
+    async function markRead(ids, all) {
+      let ch = false; S.mail.forEach((m) => { if ((all || ids.includes(m.id)) && !m.r) { m.r = 1; ch = true; } });
+      if (!ch) return; render(); if (S.env) renderLedger();
+      try { await call('POST', '', all ? { readAll: true } : { read: ids }); } catch (e) { /* retried next time it is opened */ }
+    }
+    async function open(id) {
+      if (!loaded) { pendingOpen = id; load(); return; }
+      const m = S.mail.find((x) => x.id === id); if (!m) { toast('Ese correo ya no está'); return; }
+      const src = MSRC[m.kind] || MSRC.amazon;
+      $('m-title').textContent = m.title || m.subject;
+      $('m-meta').textContent = ''; $('m-meta').append(h('div', null, h('b', null, m.subject)), h('div', null, src.l + ' · ' + (m.from || '') + ' · ' + new Date(m.date).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' })));
+      const acts = $('m-acts'); acts.textContent = '';
+      const gm = 'https://mail.google.com/mail/' + (m.acct ? '?authuser=' + encodeURIComponent(m.acct) : 'u/0/') + '#all/' + encodeURIComponent(m.id);
+      acts.append(h('a', { class: 'btn', href: gm, target: '_blank', rel: 'noopener' }, 'Abrir en Gmail'));
+      envsForMail(m).slice(0, 3).forEach((e) => acts.append(h('button', { class: 'btn ghost', type: 'button', onclick: () => { close(); showOrder(e); } }, '📦 ' + envName(e))));
+      const fr = $('m-frame'); fr.srcdoc = '<p style="font:14px sans-serif;color:#6b7380;padding:16px">Abriendo el correo…</p>';
+      $('mscrim').hidden = false;
+      markRead([id]);
+      try {
+        const full = await call('GET', '?id=' + encodeURIComponent(id));
+        const head = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src https: data:; style-src \'unsafe-inline\' https:; font-src https: data:"><base target="_blank"><style>body{margin:0;padding:12px;font-family:-apple-system,Segoe UI,sans-serif;color:#1f2933;word-wrap:break-word}img{max-width:100%;height:auto}table{max-width:100%!important}</style>';
+        const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        fr.srcdoc = head + (full.html ? full.html : '<pre style="white-space:pre-wrap;font:14px/1.5 -apple-system,sans-serif">' + esc(full.text || m.snippet || '') + '</pre>');
+      } catch (e) { fr.srcdoc = '<p style="font:14px sans-serif;color:#b04a4a;padding:16px">No se pudo abrir el correo. Revisa tu conexión.</p>'; }
+    }
+    const close = () => { $('mscrim').hidden = true; $('m-frame').srcdoc = ''; };
+    $('m-x').addEventListener('click', close);
+    $('mscrim').addEventListener('click', (ev) => { if (ev.target === $('mscrim')) close(); });
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !$('mscrim').hidden) close(); });
+    $('mreadall').addEventListener('click', () => markRead([], true));
+    $('mq').addEventListener('input', (ev) => { S.mq = ev.target.value; render(); });
+    $('correos').addEventListener('click', () => { render(); load(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+    setInterval(() => { if (!document.hidden) load(); }, 120000);
+    const want = new URLSearchParams(location.search).get('correo');
+    if (want) { pendingOpen = want; showTab($('correos')); history.replaceState(null, '', location.pathname + location.hash); }
+    if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', (ev) => { const u = ev.data && ev.data.open; if (!u) return; const id = new URL(u, location.href).searchParams.get('correo'); if (id) { showTab($('correos')); open(id); } });
+    return { load, render, open };
+  })();
+  function showMailsFor(e) { S.mfor = e; S.mfilter = 'todos'; showTab($('correos')); MAIL.render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function showOrder(e) { S.filter = 'todos'; S.q = ''; const q = $('q'); if (q) q.value = e.pedido || e.tracking || ''; S.q = q ? q.value : ''; showTab($('envios')); renderChips(); renderLedger(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  setTimeout(() => MAIL.load(), 1200);
 
   /* ---------- Self-update: when a new version is published, reload on its own ---------- */
   const APP_V = 'importaciones-v21';

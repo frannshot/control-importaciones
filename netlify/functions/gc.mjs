@@ -1,11 +1,12 @@
 // Receives e-mails from the Gmail Apps Scripts (one per Gmail account).
-// Gold Coast receipts and invoices are parsed and applied to the shipments; Amazon and
-// Binance e-mails are kept as they are (newest 60) until their reader is built.
+// Every e-mail goes to the in-app inbox (and rings the phone when it is new). Gold Coast receipts
+// and invoices are also applied to the shipments; Amazon and Binance e-mails feed the charges.
 // POST { emails: [{ id, from, subject, date, html, body }] }
 // GET -> { docs }            GET ?raw=1 -> { raw }   (both need the key)
 import { authorized, json, cors, store, loadData, saveData, applyDocs, notify, docMessages } from './lib.mjs';
 import { parseEmail } from './gc-parse.mjs';
 import { applyAmazon } from './amazon.mjs';
+import { storeMails, mailMessages } from './mailbox.mjs';
 
 const RAW_MAX = 60;
 const kindOf = (em) => {
@@ -30,6 +31,7 @@ export default async (req) => {
   let payload; try { payload = await req.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
   const emails = Array.isArray(payload.emails) ? payload.emails.slice(0, 50) : [];
   const docs = (await s.get('docs', { type: 'json' })) || {};
+  const fresh = await storeMails(s, emails, kindOf).catch((e) => { console.log('mailbox', e); return []; });
   let raw = null, added = 0, kept = 0;
   for (const em of emails) {
     const kind = kindOf(em);
@@ -67,7 +69,7 @@ export default async (req) => {
     data.meta.amz = data.meta.amz || { applied: {}, init: '2026-10-31T04:00:00.000Z' }; // older e-mails only fill in shipments already in the app
     msgs.push(...applyAmazon(data, Object.values(raw), data.meta.amz.init));
     if (JSON.stringify(data) !== before) await saveData(s, data);
-    pushed = await notify(s, msgs);
   }
-  return json({ ok: true, parsed: added, kept, total: Object.keys(docs).length, changed: res.changed, created: res.created, pushed });
+  pushed = await notify(s, [...msgs, ...mailMessages(fresh, msgs)]);
+  return json({ ok: true, inbox: fresh.length, parsed: added, kept, total: Object.keys(docs).length, changed: res.changed, created: res.created, pushed });
 };
