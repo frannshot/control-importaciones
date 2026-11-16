@@ -564,9 +564,12 @@ details.auto > .fields { padding: 0 14px 14px; }
 
 /* Inbox */
 .tab { position: relative; white-space: nowrap; }
+.tab.tmail { display: inline-flex; align-items: center; justify-content: center; padding-left: 13px !important; padding-right: 13px !important; flex: 0 0 auto !important; }
+.tab.tmail svg { width: 20px; height: 20px; display: block; }
+.tab.tmail .tbadge { position: absolute; top: 0; right: 0; margin: 0; min-width: 18px; line-height: 16px; font-size: 10px; padding: 0 4px; min-width: 16px; box-shadow: 0 0 0 2px #1d5560; }
 a.btn { text-decoration: none; color: var(--ink); display: inline-flex; align-items: center; }
 .tab .tbadge { display: inline-block; min-width: 18px; margin-left: 5px; padding: 0 5px; border-radius: 99px; background: #e8a0a0; color: #3a1f1f; font-size: 11px; line-height: 18px; font-weight: 700; text-align: center; vertical-align: 1px; }
-@media (max-width: 680px) { .tabs .tab { font-size: 11.5px !important; letter-spacing: .01em !important; padding: 7px 2px !important; } .tab .tbadge { position: absolute; top: -5px; right: -2px; margin: 0; min-width: 16px; line-height: 16px; font-size: 10px; padding: 0 4px; } }
+@media (max-width: 680px) { .tabs .tab { font-size: 12px !important; letter-spacing: .02em !important; padding: 7px 3px !important; } .tab.tmail { padding-left: 10px !important; padding-right: 10px !important; } }
 #mchips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; padding: 2px 0 4px; }
 #mchips::-webkit-scrollbar { display: none; }
 #mchips .chip { border: 1px solid var(--line); border-radius: 99px; background: var(--panel); color: var(--ink); white-space: nowrap; }
@@ -606,7 +609,7 @@ a.btn { text-decoration: none; color: var(--ink); display: inline-flex; align-it
       <button class="tab" role="tab" id="resumen" data-view="v-resumen" aria-selected="false">Resumen</button>
       <button class="tab" role="tab" id="cotizador" data-view="v-cotizar" aria-selected="false">Cotizador</button>
       <button class="tab" role="tab" id="tarifas" data-view="v-ajustes" aria-selected="false">Tarifas</button>
-      <button class="tab" role="tab" id="correos" data-view="v-correos" aria-selected="false">Correos<b class="tbadge" id="mbadge" hidden></b></button>
+      <button class="tab tmail" role="tab" id="correos" data-view="v-correos" aria-selected="false" aria-label="Correos" title="Correos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg><b class="tbadge" id="mbadge" hidden></b></button>
     </nav>
   </div>
 
