@@ -2225,7 +2225,7 @@ a.btn { text-decoration: none; color: var(--ink); display: inline-flex; align-it
   setTimeout(() => MAIL.load(), 1200);
 
   /* ---------- Self-update: when a new version is published, reload on its own ---------- */
-  const APP_V = 'importaciones-v21';
+  const APP_V = 'importaciones-v22';
   let swReg = null;
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {}));
   const busyNow = () => !$('scrim').hidden || !$('pscrim').hidden || !$('dscrim').hidden || !$('kscrim').hidden || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
